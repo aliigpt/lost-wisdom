@@ -100,3 +100,5 @@ A surprise demon during transcription. Because of the lack of food, everything b
 
 ## Ending
 
+The Reader can go back to their real world.
+
