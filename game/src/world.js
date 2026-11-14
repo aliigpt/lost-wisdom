@@ -122,7 +122,7 @@ window.GAME = window.GAME || {};
     let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
     // ----- Moods: calm night vs. demon night (plus grey for the Fog) -----
-    const WARM = { top: C('#04060d'), bottom: C('#1a2438'), fog: C('#141c2c'), hSky: C('#8394bd'), hGround: C('#16150f'), hemi: .3, moon: 1.8, density: .026 };
+    const WARM = { top: C('#04060d'), bottom: C('#1a2438'), fog: C('#141c2c'), hSky: C('#8394bd'), hGround: C('#16150f'), hemi: .3, moon: 1.15, density: .026 };
     const COLD = { top: C('#020306'), bottom: C('#141a24'), fog: C('#10141b'), hSky: C('#62718f'), hGround: C('#0a0b0e'), hemi: .12, moon: .35, density: .045 };
     const GREY = C('#6b7079');
 
@@ -250,7 +250,7 @@ window.GAME = window.GAME || {};
 
     // ----- Light -----
     const hemi = new T.HemisphereLight(0xffffff, 0x222222, .5); scene.add(hemi);
-    const moon = new T.DirectionalLight(0xb8c6ff, 1);
+    const moon = new T.DirectionalLight(0xa9b6d6, 1);   // soft, slightly desaturated moonlight
     const SH = renderer.capabilities.maxTextureSize >= 8192 ? 4096 : 2048;   // big shadow map where the GPU allows it
     moon.castShadow = true; moon.shadow.mapSize.set(SH, SH); moon.shadow.bias = -.0003; moon.shadow.normalBias = .06;
     Object.assign(moon.shadow.camera, { left: -75, right: 75, top: 75, bottom: -75, near: 1, far: 320 });
