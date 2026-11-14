@@ -51,6 +51,7 @@ function addWind(m, bend, flutter, leaf) {
       sh.fragmentShader = 'varying float vAO; uniform vec3 uMoonView; uniform vec3 uMoonCol;\n' + bothSidesLit(sh.fragmentShader)
         .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(0.28, 1.0, vAO);')
         .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+          reflectedLight.directDiffuse *= mix(1.0, 0.3, smoothstep(36.0, 50.0, length(vViewPosition)));   // far away: under the canopy
           // light shining through thin leaves when the moon is behind them
           float back = pow(max(dot(-normalize(vViewPosition), uMoonView), 0.0), 3.0);
           reflectedLight.directDiffuse += diffuseColor.rgb * uMoonCol * vec3(0.75, 1.0, 0.55) * (0.06 + back * 0.4) * mix(0.4, 1.0, vAO);`);
@@ -79,7 +80,7 @@ export function foliageMaterials(renderer) {
   const card = (url, tint, bend, flutter) => {
     const map = tex(url);
     // leaves are matte and dark (real foliage reflects little light), so moonlit tops don't turn white
-    const m = new T.MeshStandardMaterial({ map, color: tint, alphaTest: .45, side: T.DoubleSide, roughness: 1, metalness: 0, envMapIntensity: .2 });
+    const m = new T.MeshStandardMaterial({ map, color: tint, alphaTest: .45, alphaToCoverage: true, side: T.DoubleSide, roughness: 1, metalness: 0, envMapIntensity: .2 });
     m.userData.isFoliage = true;
     addWind(m, bend, flutter, true);
     // the shadow-casting copy bends the same way, so shadows move with the leaves
@@ -288,7 +289,7 @@ export function buildGrass(mats, heightTex, size, count = 16000, radius = 28) {
   geo.setAttribute('aG', new T.InstancedBufferAttribute(data, 4));
   geo.instanceCount = count;
   const center = { value: new T.Vector2() };
-  const mat = new T.MeshStandardMaterial({ map: mats.grass, alphaTest: .5, side: T.DoubleSide, roughness: 1, envMapIntensity: .2, color: '#86a070' });
+  const mat = new T.MeshStandardMaterial({ map: mats.grass, alphaTest: .5, alphaToCoverage: true, side: T.DoubleSide, roughness: 1, envMapIntensity: .2, color: '#86a070' });
   mat.onBeforeCompile = sh => {
     Object.assign(sh.uniforms, { uMoonView: moonView, uMoonCol: moonColor, uTime: wind, uGust: gust, uCenter: center, uHeight: { value: heightTex }, uSize: { value: size }, uHalf: { value: radius }, uN: { value: heightTex.image.width } });
     sh.vertexShader = `varying float vH; uniform float uTime; uniform float uGust; uniform vec2 uCenter; uniform sampler2D uHeight; uniform float uSize; uniform float uHalf; uniform float uN; attribute vec4 aG;\n` +

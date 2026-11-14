@@ -111,7 +111,7 @@ window.GAME = window.GAME || {};
     }
     renderer.setPixelRatio(Math.min(1.75, devicePixelRatio || 1));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = T.PCFSoftShadowMap;
+    renderer.shadowMap.type = T.PCFShadowMap;   // with shadow.radius below: crisp near the Reader, soft edges
     renderer.toneMapping = T.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.12;
     const fmat = foliageMaterials(renderer);
@@ -133,9 +133,17 @@ window.GAME = window.GAME || {};
       side: T.BackSide, depthWrite: false, fog: false,
       uniforms: { top: { value: C('#fff') }, bottom: { value: C('#fff') } },
       vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: 'uniform vec3 top; uniform vec3 bottom; varying vec3 vP; void main(){ float h = clamp(vP.y * 1.4 + .15, 0., 1.); gl_FragColor = vec4(mix(bottom, top, h), 1.);\n#include <colorspace_fragment>\n}'
+      fragmentShader: `uniform vec3 top; uniform vec3 bottom; varying vec3 vP;
+        void main(){
+          float h = clamp(vP.y * 1.4 + .15, 0., 1.);
+          vec3 c = mix(bottom, top, pow(h, 0.8));
+          c += vec3(.012, .016, .03) * exp(-abs(vP.y) * 9.0);   // faint airglow along the horizon
+          c += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - .5) / 255.;
+          gl_FragColor = vec4(c, 1.);
+          #include <colorspace_fragment>
+        }`
     });
-    sky.add(new T.Mesh(new T.SphereGeometry(600, 32, 16), skyMat));
+    sky.add(new T.Mesh(new T.SphereGeometry(600, 64, 32), skyMat));
 
     // painted horizon (mountains, mist), fading out toward the top so it blends into the dome
     const fadeTex = (() => { const c = document.createElement('canvas'); c.width = 4; c.height = 256; const x = c.getContext('2d');
@@ -145,16 +153,16 @@ window.GAME = window.GAME || {};
     const backdrop = new T.Mesh(new T.CylinderGeometry(480, 480, 300, 96, 1, true), backdropMat);
     backdrop.position.y = 70; backdrop.renderOrder = -9; sky.add(backdrop);
     new T.TextureLoader().load('textures/backdrop.jpg', tex => {
-      tex.colorSpace = T.SRGBColorSpace; tex.wrapS = T.MirroredRepeatWrapping; tex.repeat.set(4, 1); tex.anisotropy = 8;
+      tex.colorSpace = T.SRGBColorSpace; tex.wrapS = T.MirroredRepeatWrapping; tex.repeat.set(2, 1); tex.anisotropy = 16;
       backdropMat.map = tex; backdropMat.opacity = 1; backdropMat.needsUpdate = true;
     }, undefined, () => console.info('No backdrop at textures/backdrop.jpg'));
 
     // stars: each one twinkles at its own speed; the whole sky turns slowly around a tilted axis
-    const STARS = 3600, sPos = new Float32Array(STARS * 3), sSize = new Float32Array(STARS), sPhase = new Float32Array(STARS), sCol = new Float32Array(STARS * 3);
+    const STARS = 7500, sPos = new Float32Array(STARS * 3), sSize = new Float32Array(STARS), sPhase = new Float32Array(STARS), sCol = new Float32Array(STARS * 3);
     for (let i = 0; i < STARS; i++) {
       const u = Math.random() * 2 - 1, th = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u);
       sPos.set([Math.cos(th) * r * 560, u * 560, Math.sin(th) * r * 560], i * 3);
-      sSize[i] = 1.2 + Math.pow(Math.random(), 6) * 5.5; sPhase[i] = Math.random() * 100;
+      sSize[i] = .9 + Math.pow(Math.random(), 9) * 7.5; sPhase[i] = Math.random() * 100;
       const warm = Math.random(); sCol.set([.85 + warm * .15, .88 + warm * .07, 1 - warm * .2], i * 3);
     }
     const starGeo = new T.BufferGeometry();
@@ -167,14 +175,14 @@ window.GAME = window.GAME || {};
         varying vec3 vCol; varying float vA;
         void main(){
           vec4 wp = modelMatrix * vec4(position, 1.0);
-          float tw = 0.6 + 0.4 * sin(uTime * (1.2 + fract(aPhase * 7.13) * 3.5) + aPhase) * sin(uTime * 0.7 + aPhase * 3.1);
+          float tw = 0.72 + 0.28 * sin(uTime * (1.2 + fract(aPhase * 7.13) * 3.5) + aPhase) * sin(uTime * 0.7 + aPhase * 3.1);
           vA = tw * smoothstep(-10.0, 140.0, wp.y - cameraPosition.y);
           vCol = aCol;
           gl_Position = projectionMatrix * viewMatrix * wp;
           gl_PointSize = aSize * uScale * (0.75 + 0.35 * tw);
         }`,
       fragmentShader: `uniform float uOpacity; varying vec3 vCol; varying float vA;
-        void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.0, d); gl_FragColor = vec4(vCol * a, a * vA * uOpacity); }`
+        void main(){ float d = length(gl_PointCoord - 0.5); float a = exp(-d * d * 60.0) + exp(-d * 9.0) * 0.18; a *= smoothstep(0.5, 0.35, d); gl_FragColor = vec4(vCol * a, a * vA * uOpacity); }`
     });
     const starPivot = new T.Group(); starPivot.rotation.set(.55, 0, .2); sky.add(starPivot);
     const stars = new T.Points(starGeo, starMat); stars.renderOrder = -8; stars.frustumCulled = false; starPivot.add(stars);
@@ -193,34 +201,50 @@ window.GAME = window.GAME || {};
       x.fillStyle = g; x.fillRect(0, 0, 256, 256); const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return t; })();
     const moonDisc = new T.Sprite(new T.SpriteMaterial({ color: '#f2efe4', fog: false, depthWrite: false, transparent: true }));
     new T.TextureLoader().load('textures/moon.webp', t => { t.colorSpace = T.SRGBColorSpace; moonDisc.material.map = t; moonDisc.material.needsUpdate = true; });
-    moonDisc.scale.setScalar(24); moonDisc.renderOrder = -7;
+    moonDisc.scale.setScalar(19); moonDisc.renderOrder = -7;
     const moonGlow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, fog: false, depthWrite: false, transparent: true, blending: T.AdditiveBlending }));
     moonGlow.scale.setScalar(190); moonGlow.renderOrder = -7;
-    sky.add(moonGlow, moonDisc);
+    const coronaTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+      const g = x.createRadialGradient(128, 128, 0, 128, 128, 128);
+      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(.55, 'rgba(0,0,0,0)'); g.addColorStop(.68, 'rgba(170,190,230,.10)'); g.addColorStop(.74, 'rgba(210,190,170,.07)'); g.addColorStop(.85, 'rgba(0,0,0,0)');
+      x.fillStyle = g; x.fillRect(0, 0, 256, 256); const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return t; })();
+    const moonCorona = new T.Sprite(new T.SpriteMaterial({ map: coronaTex, fog: false, depthWrite: false, transparent: true, blending: T.AdditiveBlending }));
+    moonCorona.scale.setScalar(120); moonCorona.renderOrder = -7;
+    sky.add(moonGlow, moonCorona, moonDisc);
 
     // clouds: thin, moonlit, drifting with the wind
     const cloudMat = new T.ShaderMaterial({
       side: T.BackSide, transparent: true, depthWrite: false, fog: false,
-      uniforms: { uOff: { value: new T.Vector2() }, uMoon: { value: new T.Vector3(0, 1, 0) }, uCover: { value: .5 }, uLit: { value: C('#8e9bb8') }, uDark: { value: C('#141a28') }, uAlpha: { value: .8 } },
+      uniforms: { uOff: { value: new T.Vector2() }, uMoon: { value: new T.Vector3(0, 1, 0) }, uCover: { value: .5 }, uLit: { value: C('#a3afc8') }, uDark: { value: C('#0f1420') }, uAlpha: { value: .85 } },
       vertexShader: 'varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
       fragmentShader: `uniform vec2 uOff; uniform vec3 uMoon; uniform float uCover; uniform vec3 uLit; uniform vec3 uDark; uniform float uAlpha; varying vec3 vDir;
-        float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float hash(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
         float noise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
           return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y); }
-        float fbm(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 6; i++){ s += a * noise(p); p = p * 2.03 + 17.1; a *= 0.5; } return s; }
+        float fbm(vec2 p){ float s = 0.0, a = 0.5; mat2 r = mat2(0.8, -0.6, 0.6, 0.8); for (int i = 0; i < 7; i++){ s += a * noise(p); p = r * p * 2.02 + 7.3; a *= 0.5; } return s; }
         void main(){
           vec3 d = normalize(vDir);
           if (d.y < 0.01) discard;
-          vec2 uv = d.xz / (d.y + 0.18) * 1.6 + uOff;
-          float n = fbm(uv), detail = fbm(uv * 3.1 + 5.0);
-          float dens = smoothstep(uCover, uCover + 0.3, n * 0.8 + detail * 0.3) * smoothstep(0.02, 0.3, d.y);
-          float lit = pow(max(dot(d, uMoon), 0.0), 7.0);
-          vec3 col = mix(uDark, uLit, clamp(0.15 + lit * 1.1 + (1.0 - detail) * 0.25, 0.0, 1.3));
+          vec2 base = d.xz / (d.y + 0.16);
+          // mid layer: soft banks, shaped by swirling (domain-warped) noise
+          vec2 p = base * 1.2 + uOff;
+          vec2 w = vec2(fbm(p * 0.6 + 3.1), fbm(p * 0.6 - 1.7));
+          float m = fbm(p + w * 1.4);
+          float mid = smoothstep(uCover, uCover + 0.28, m);
+          // high layer: thin streaky wisps, stretched along the wind and drifting faster
+          vec2 q = base * vec2(0.7, 2.6) + uOff * 1.8 + 11.0;
+          float hi = smoothstep(0.55, 0.85, fbm(q + fbm(q * 1.7) * 0.6)) * 0.55;
+          float dens = max(mid, hi) * smoothstep(0.02, 0.32, d.y);
+          // light: silver near the moon, edges brighter than cores (light passing through thin cloud)
+          float toward = max(dot(d, uMoon), 0.0);
+          float lit = pow(toward, 9.0) * 1.6 + pow(toward, 2.5) * 0.25;
+          float edge = 1.0 - smoothstep(0.0, 0.6, mid);
+          vec3 col = mix(uDark, uLit, clamp(0.1 + lit * (0.6 + edge) + edge * 0.15, 0.0, 1.6));
           gl_FragColor = vec4(col, dens * uAlpha);
           #include <colorspace_fragment>
         }`
     });
-    const clouds = new T.Mesh(new T.SphereGeometry(540, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2), cloudMat);
+    const clouds = new T.Mesh(new T.SphereGeometry(540, 96, 48, 0, Math.PI * 2, 0, Math.PI / 2), cloudMat);
     clouds.renderOrder = -6; sky.add(clouds);
     scene.fog = new T.FogExp2(0x000000, .03);
 
@@ -252,8 +276,8 @@ window.GAME = window.GAME || {};
     const hemi = new T.HemisphereLight(0xffffff, 0x222222, .5); scene.add(hemi);
     const moon = new T.DirectionalLight(0xa9b6d6, 1);   // soft, slightly desaturated moonlight
     const SH = renderer.capabilities.maxTextureSize >= 8192 ? 4096 : 2048;   // big shadow map where the GPU allows it
-    moon.castShadow = true; moon.shadow.mapSize.set(SH, SH); moon.shadow.bias = -.0003; moon.shadow.normalBias = .06;
-    Object.assign(moon.shadow.camera, { left: -75, right: 75, top: 75, bottom: -75, near: 1, far: 320 });
+    moon.castShadow = true; moon.shadow.mapSize.set(SH, SH); moon.shadow.bias = -.0003; moon.shadow.normalBias = .05; moon.shadow.radius = 3; moon.shadow.blurSamples = 12;
+    Object.assign(moon.shadow.camera, { left: -45, right: 45, top: 45, bottom: -45, near: 1, far: 260 });
     scene.add(moon, moon.target);
 
     // ----- Materials and helpers -----
@@ -664,14 +688,15 @@ window.GAME = window.GAME || {};
       const hits = ray.intersectObjects(lanterns.filter(l => !l.userData.lit).map(l => l.userData.hit));
       if (!hits.length) return;
       const l = lanterns.find(l => l.userData.hit === hits[0].object);
-      l.userData.lit = true; wallsLit++;
+      l.userData.lit = true; wallsLit++; GAME.audio?.play('lantern', .9);
       ringRT = 6 + wallsLit * 5; ringHT = Math.max(0, 8 - wallsLit * 2.2);
       if (wallsLit === 3) { wallsActive = false; ringRT = 30; ringHT = 0; setTimeout(() => lanterns.forEach(l => { l.visible = false; }), 1600); }
       onLantern && onLantern(wallsLit);
     });
 
     // ----- Post-processing: bloom makes lanterns and windows glow -----
-    const composer = new EffectComposer(renderer);
+    // render into a multisampled HDR buffer, so edges stay smooth through bloom and grading
+    const composer = new EffectComposer(renderer, new T.WebGLRenderTarget(innerWidth, innerHeight, { type: T.HalfFloatType, samples: 4 }));
     composer.addPass(new RenderPass(scene, camera));
     composer.addPass(new UnrealBloomPass(new T.Vector2(256, 256), .55, .45, .88));
     composer.addPass(new OutputPass());
@@ -687,6 +712,8 @@ window.GAME = window.GAME || {};
           c += vec3(-0.012, 0.004, 0.03) * (1.0 - smoothstep(0.0, 0.35, l));   // cool shadows
           c += vec3(0.03, 0.012, -0.02) * smoothstep(0.45, 1.0, l);            // warm highlights
           c = clamp((c - 0.5) * 1.07 + 0.5, 0.0, 1.0);
+          float n = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453);
+          c += (n - 0.5) / 160.0;   // fine dither: no visible steps in the dark sky
           gl_FragColor = vec4(c, 1.0);
         }`
     }));
@@ -697,7 +724,7 @@ window.GAME = window.GAME || {};
     addEventListener('resize', resize); resize();
 
     // ----- Frame loop -----
-    let mood = 0, moodT = 0, fogAmt = 0, fogT = 0, shaking = false, camMode = 'title';
+    let mood = 0, moodT = 0, fogAmt = 0, fogT = 0, shaking = false, camMode = 'title', roared = false;
     const camPos = new T.Vector3(30, 22, 40), camLook = new T.Vector3(), v3 = new T.Vector3(), tmp = new T.Color();
     const clock = new T.Clock();
     const mix = (a, b, t) => tmp.copy(a).lerp(b, t);
@@ -778,14 +805,15 @@ window.GAME = window.GAME || {};
       camera.lookAt(camLook);
       sky.position.set(camera.position.x, 0, camera.position.z);
       starPivot.rotation.y = night * 1.4 + t * .002;                                   // the stars wheel across the sky
-      moonDisc.position.copy(MOON_DIR).multiplyScalar(500); moonGlow.position.copy(MOON_DIR).multiplyScalar(505);
+      moonDisc.position.copy(MOON_DIR).multiplyScalar(500); moonGlow.position.copy(MOON_DIR).multiplyScalar(505); moonCorona.position.copy(MOON_DIR).multiplyScalar(506);
+      moonCorona.material.opacity = (1 - mood * .6) * (1 - dawn) * (.6 + fogAmt);
       moonDisc.material.opacity = 1 - fogAmt * .7; moonGlow.material.opacity = (.9 - mood * .5 - fogAmt * .6) * (1 - dawn * .6);
       cloudMat.uniforms.uMoon.value.copy(MOON_DIR);
       camera.updateMatrixWorld(); moonView.value.copy(MOON_DIR).transformDirection(camera.matrixWorldInverse);
       moonColor.value.setRGB(.62, .7, .92).multiplyScalar(smooth(.02, .3, MOON_DIR.y) * (1 - mood * .7) * (1 - fogAmt * .6));
       cloudMat.uniforms.uOff.value.x += dt * .006 * (.4 + gust.value);                 // clouds drift with the wind
       cloudMat.uniforms.uOff.value.y -= dt * .002 * (.4 + gust.value);
-      cloudMat.uniforms.uCover.value = lerp(.56, .38, Math.max(mood, fogAmt));           // demons bring heavier cloud
+      cloudMat.uniforms.uCover.value = lerp(.6, .42, Math.max(mood, fogAmt));           // demons bring heavier cloud
       water.material.uniforms.sunDirection.value.copy(MOON_DIR);
       // shooting stars
       if (meteorT < 0 && (nextMeteor -= dt) < 0 && mood < .5) {
@@ -804,7 +832,7 @@ window.GAME = window.GAME || {};
 
       // moonlight shadows follow the player
       // shadows centered a little ahead of the Reader, where the camera is looking
-      moon.target.position.set(player.x + Math.sin(camYaw) * 30, player.y, player.z + Math.cos(camYaw) * 30);
+      moon.target.position.set(player.x + Math.sin(camYaw) * 18, player.y, player.z + Math.cos(camYaw) * 18);
       moon.position.copy(moon.target.position).addScaledVector(MOON_DIR, 150);
 
       // only draw forest chunks near the camera
@@ -876,6 +904,12 @@ window.GAME = window.GAME || {};
         u.light.intensity += ((u.lit ? 3 * LI : 0) - u.light.intensity) * .08;
       });
 
+      // sound: wind with the gusts, river by distance, footsteps by what's underfoot
+      if (GAME.audio) {
+        const surface = onBridge(player.x, player.z) && Math.abs(player.z - RZ) < RW / 2 + 2 ? 'wood' : (nearestPath(player.x, player.z).d < 1.5 ? 'stone' : 'grass');
+        GAME.audio.update({ gust: gust.value, mood: Math.max(mood, fogAmt), riverDist: Math.abs(player.z - RZ), speed: control ? player.speed : 0, surface, exploring: control });
+        if (night > .9 && !roared) { roared = true; GAME.audio.play('creature-roar', .8); }   // dawn is coming
+      }
       water.material.uniforms.time.value += dt * (.45 + gust.value * .35);
       for (const f of flows) { f.tex.offset.x += dt * f.speed; f.mat.opacity = f.op * (1 - fogAmt * .5); }   // the river flows
       grass.userData.follow(player.x, player.z);
@@ -909,14 +943,14 @@ window.GAME = window.GAME || {};
       celebrate: () => { burst = 1; },
       walls: cb => {
         onLantern = cb; wallsActive = true; wallsLit = 0;
-        ringCenter.set(player.x, 0, player.z); ringR = 30; ringRT = 6; ringH = 0; ringHT = 8;
+        ringCenter.set(player.x, 0, player.z); ringR = 30; ringRT = 6; ringH = 0; ringHT = 8; GAME.audio?.play('stone-rumble', 1);
         lanterns.forEach(l => { l.visible = true; l.userData.lit = false; l.userData.light.intensity = 0; });
       },
       reset: () => {
         for (const id in demons) { scene.remove(demons[id]); delete demons[id]; }
         fogT = 0; shaking = false; moodT = 0; walkTarget = null; onArrive = null; control = false;
         Object.assign(player, { x: L.start.x, z: L.start.z, heading: Math.PI, speed: 0 }); player.y = groundH(player.x, player.z);
-        camYaw = Math.PI; camMode = 'follow'; night = .06;
+        camYaw = Math.PI; camMode = 'follow'; night = .06; roared = false;
       }
     };
   }

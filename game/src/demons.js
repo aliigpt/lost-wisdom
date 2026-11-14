@@ -18,6 +18,7 @@ window.GAME = window.GAME || {};
     active = id; phase = 'card';
     GAME.setWeather(true);
     GAME.world.summon(id);
+    GAME.audio?.play('demon-appear', 1); GAME.audio?.loop('battle-loop', .75, 2); GAME.audio?.duckMusic(true);
     $('#demon-blob').innerHTML = GAME.ui.blobSVG(id);
     $('#demon-real').textContent = d.real;
     $('#demon-name').textContent = d.name;
@@ -34,7 +35,7 @@ window.GAME = window.GAME || {};
     document.body.classList.add('demon-' + id);
     whisper(text(id).whisper, true);
     if (id === 'fog') GAME.world.fog(true);
-    if (id === 'flutter') { GAME.world.shake(true); startBreath(); }
+    if (id === 'flutter') { GAME.world.shake(true); startBreath(); GAME.audio?.loop('heartbeat', .85, .5); }
     if (id === 'quill') startQuill();
     if (id === 'walls') startWalls();
   }
@@ -45,6 +46,7 @@ window.GAME = window.GAME || {};
     active = null; phase = null;
     if (!faced.includes(id)) faced.push(id);
     GAME.world.fog(false); GAME.world.shake(false); GAME.world.settle(id);
+    GAME.audio?.play('demon-defeated', 1); GAME.audio?.loop('battle-loop', 0, 3); GAME.audio?.loop('heartbeat', 0, 1.5); GAME.audio?.duckMusic(false);
     GAME.setWeather(false);
     whisper(text(id).done);
   }
@@ -91,14 +93,15 @@ window.GAME = window.GAME || {};
     cv.width = r.width * k; cv.height = r.height * k; cx.scale(k, k);
     cx.lineWidth = 3; cx.lineCap = 'round'; cx.lineJoin = 'round';
     cx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--ink');
-    let down = false, lx = 0, ly = 0, len = 0, finished = false;
+    let down = false, lx = 0, ly = 0, len = 0, finished = false, scratch = 0;
     const pos = e => { const b = cv.getBoundingClientRect(); return [e.clientX - b.left, e.clientY - b.top]; };
     cv.addEventListener('pointerdown', e => { down = true; [lx, ly] = pos(e); cv.setPointerCapture(e.pointerId); });
     cv.addEventListener('pointermove', e => {
       if (!down || finished) return;
       const [x, y] = pos(e);
       cx.beginPath(); cx.moveTo(lx, ly); cx.lineTo(x, y); cx.stroke();
-      len += Math.hypot(x - lx, y - ly); lx = x; ly = y;
+      const step = Math.hypot(x - lx, y - ly); len += step; lx = x; ly = y;
+      scratch += step; if (scratch > 90) { scratch = 0; GAME.audio?.play('quill', .7, 1.2); }   // the quill scratches as you scribble
       if (len > 420) {
         finished = true;
         q.querySelector('.q-task').textContent = 'There. Messy, and it counts.';

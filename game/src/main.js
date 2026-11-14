@@ -8,6 +8,8 @@ window.GAME = window.GAME || {};
   const { $ } = GAME.ui;
 
   GAME.world = GAME.createWorld($('#world'));
+  GAME.audio.music('music-title');   // starts with the first click (browsers require one)
+  addEventListener('click', e => { if (e.target.closest('button')) GAME.audio.play('ui-click', .5); });
   GAME.setWeather = cold => { document.body.classList.toggle('cold', cold); GAME.world.setMood(cold); };
 
   // ----- Title screen text -----
@@ -61,6 +63,7 @@ window.GAME = window.GAME || {};
     ['#title-screen', '#choose', '#ending', '#game', '#scene', '#walk-hud'].forEach(s => { $(s).hidden = true; });
     GAME.book.reset(); GAME.demons.reset(); GAME.world.reset();
     GAME.setWeather(false);
+    GAME.audio.music('music-explore');
     script = GAME.script || [];
     pages = script.filter(s => s.type === 'page');
     step = 0;

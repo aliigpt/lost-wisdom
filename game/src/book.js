@@ -29,6 +29,7 @@ window.GAME = window.GAME || {};
     $('#folio-r').textContent = `folio ${folio(no)}, verso`;
     renderGlyphs(); renderTray(); renderPips(); renderLexicon();
     whisper(p.intro || '');
+    GAME.audio?.play('page-turn', .8);
     if (p.demon) setTimeout(() => GAME.demons.start(p.demon), 1400);
     if (firstOpen() < 0) completePage(); // every word already known
   }
@@ -75,6 +76,7 @@ window.GAME = window.GAME || {};
     if (word === target) {
       known[target] = true; order.push(target);
       chipEl.classList.add('used');
+      GAME.audio?.play('quill', .9); setTimeout(() => GAME.audio?.play('shimmer', .45), 350);
       selected = firstOpen();
       renderGlyphs(target); renderLexicon();
       if (!GAME.demons.onCorrectWord()) whisper(`"${target}". It goes into your lexicon.`);
@@ -82,6 +84,7 @@ window.GAME = window.GAME || {};
     } else {
       const slot = document.querySelector(`.slot[data-i="${i}"]`);
       [slot, chipEl].forEach(el => { el.classList.remove('wrong'); void el.offsetWidth; el.classList.add('wrong'); });
+      GAME.audio?.play('paper-knock', .8);
       whisper(WRONG[wrongN++ % WRONG.length]);
     }
   }
@@ -95,7 +98,7 @@ window.GAME = window.GAME || {};
     whisper('The line glows softly.');
   }
 
-  $('#turn').addEventListener('click', () => { $('#game').hidden = true; onDone && onDone(); });
+  $('#turn').addEventListener('click', () => { GAME.audio?.play('page-turn', .8); $('#game').hidden = true; onDone && onDone(); });
   $('#glyph-line').addEventListener('click', e => { const s = e.target.closest('.slot'); if (s) select(+s.dataset.i); });
   $('#tray').addEventListener('click', e => { const c = e.target.closest('.chip'); if (c) assign(c.dataset.w, c); });
 
