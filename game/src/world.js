@@ -113,7 +113,7 @@ window.GAME = window.GAME || {};
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = T.PCFSoftShadowMap;
     renderer.toneMapping = T.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
+    renderer.toneMappingExposure = 1.12;
     const fmat = foliageMaterials(renderer);
 
     const scene = new T.Scene();
@@ -122,7 +122,7 @@ window.GAME = window.GAME || {};
     let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
     // ----- Moods: calm night vs. demon night (plus grey for the Fog) -----
-    const WARM = { top: C('#04060d'), bottom: C('#1a2438'), fog: C('#141c2c'), hSky: C('#7d8fb8'), hGround: C('#0f0e0b'), hemi: .16, moon: 1.7, density: .026 };
+    const WARM = { top: C('#04060d'), bottom: C('#1a2438'), fog: C('#141c2c'), hSky: C('#7d8fb8'), hGround: C('#13120e'), hemi: .22, moon: 1.8, density: .026 };
     const COLD = { top: C('#020306'), bottom: C('#141a24'), fog: C('#10141b'), hSky: C('#62718f'), hGround: C('#0a0b0e'), hemi: .12, moon: .35, density: .045 };
     const GREY = C('#6b7079');
 
@@ -343,10 +343,10 @@ window.GAME = window.GAME || {};
       const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(200,210,230,.55)'); g.addColorStop(1, 'rgba(200,210,230,0)');
       x.fillStyle = g; x.fillRect(0, 0, 128, 128); const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return t; })();
     const mists = [];
-    for (let i = 0; i < 40; i++) {
-      const s = new T.Sprite(new T.SpriteMaterial({ map: mistTex, transparent: true, depthWrite: false, opacity: .12, color: '#aab6cc' }));
-      const nearRiver = i < 26, x = (rnd() - .5) * (nearRiver ? 160 : 300), z = nearRiver ? RZ + (rnd() - .5) * 18 : (rnd() - .5) * 300;
-      s.position.set(x, (nearRiver ? WATER_Y : groundH(x, z)) + 1.2, z); s.scale.set(26, 7, 1);
+    for (let i = 0; i < 30; i++) {
+      const s = new T.Sprite(new T.SpriteMaterial({ map: mistTex, transparent: true, depthWrite: false, opacity: .05, color: '#5f6c84' }));
+      const nearRiver = i < 12, x = (rnd() - .5) * (nearRiver ? 160 : 300), z = nearRiver ? RZ + (rnd() - .5) * 18 : (rnd() - .5) * 300;
+      s.position.set(x, (nearRiver ? WATER_Y + .8 : groundH(x, z) + 1.4), z); s.scale.set(nearRiver ? 30 : 26, nearRiver ? 3.5 : 7, 1);
       s.userData.v = (rnd() - .5) * .6; scene.add(s); mists.push(s);
     }
 
@@ -802,7 +802,7 @@ window.GAME = window.GAME || {};
       for (const s of mists) {   // mist rolls along with the wind
         s.position.x += (s.userData.v * .3 + .6 + gust.value * 1.4) * dt;
         if (s.position.x > player.x + 160) s.position.x -= 320;
-        s.material.opacity = .1 + mood * .08 + fogAmt * .15;
+        s.material.opacity = .045 + mood * .05 + fogAmt * .14;
       }
 
       // fireflies around the reader
