@@ -99,6 +99,13 @@ window.GAME = window.GAME || {};
     return h;
   }
   const onBridge = (x, z) => Math.abs(x) < 1.5 && Math.abs(z - RZ) < RW / 2 + 3;
+  // Ground cover: grass in the clearings, along the path and by the river; needles, leaves and moss under the trees
+  function floorAt(x, z) {
+    const open = Math.max(...clearings.map(c => 1 - smooth(c.r - 4, c.r + 8, Math.hypot(x - c.x, z - c.z))));
+    const bank = 1 - smooth(RW / 2 + 2, RW / 2 + 12, Math.abs(z - RZ));
+    const f = smooth(3.5, 10, nearestPath(x, z).d) * (1 - open) * (1 - bank);
+    return clamp(f + vnoise(x * .07, z * .07) * .35 + vnoise(x * .23 + 9, z * .23) * .12 - .08, 0, 1);
+  }
 
   // ---------------------------------------------------------------
   function createWorld(canvas) {
@@ -113,7 +120,7 @@ window.GAME = window.GAME || {};
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = T.PCFShadowMap;   // with shadow.radius below: crisp near the Reader, soft edges
     renderer.toneMapping = T.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.12;
+    renderer.toneMappingExposure = 1.22;
     const fmat = foliageMaterials(renderer);
 
     const scene = new T.Scene();
@@ -122,7 +129,7 @@ window.GAME = window.GAME || {};
     let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
     // ----- Moods: calm night vs. demon night (plus grey for the Fog) -----
-    const WARM = { top: C('#04060d'), bottom: C('#1a2438'), fog: C('#141c2c'), hSky: C('#8394bd'), hGround: C('#16150f'), hemi: .3, moon: 1.15, density: .026 };
+    const WARM = { top: C('#04060d'), bottom: C('#1a2438'), fog: C('#141c2c'), hSky: C('#8394bd'), hGround: C('#18170f'), hemi: .38, moon: 1.15, density: .026 };
     const COLD = { top: C('#020306'), bottom: C('#141a24'), fog: C('#10141b'), hSky: C('#62718f'), hGround: C('#0a0b0e'), hemi: .12, moon: .35, density: .045 };
     const GREY = C('#6b7079');
 
@@ -305,14 +312,26 @@ window.GAME = window.GAME || {};
     const SEG = 260;
     const tGeo = new T.PlaneGeometry(L.size, L.size, SEG, SEG); tGeo.rotateX(-Math.PI / 2);
     const tp = tGeo.attributes.position;
-    for (let i = 0; i < tp.count; i++) tp.setY(i, groundH(tp.getX(i), tp.getZ(i)));
+    const floorA = new Float32Array(tp.count);
+    for (let i = 0; i < tp.count; i++) { tp.setY(i, groundH(tp.getX(i), tp.getZ(i))); floorA[i] = floorAt(tp.getX(i), tp.getZ(i)); }
+    tGeo.setAttribute('aFloor', new T.BufferAttribute(floorA, 1));
     tGeo.computeVertexNormals();
     const terrain = new T.Mesh(tGeo, mat.ground); terrain.receiveShadow = true; scene.add(terrain);
     tiled('textures/ground-grass.jpg', mat.ground, L.size / 7, L.size / 7, '#8b9878');
+    // blend in the forest floor texture, with a ragged natural edge driven by the texture itself
+    const floorTex = texLoader.load('textures/ground-forest.jpg', t => { t.colorSpace = T.SRGBColorSpace; t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = renderer.capabilities.getMaxAnisotropy(); });
+    mat.ground.onBeforeCompile = sh => {
+      sh.uniforms.uFloor = { value: floorTex };
+      sh.vertexShader = 'attribute float aFloor; varying float vFloor;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vFloor = aFloor;');
+      sh.fragmentShader = 'uniform sampler2D uFloor; varying float vFloor;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+        vec4 fl = texture2D(uFloor, vMapUv * 0.8);
+        float edge = smoothstep(0.38, 0.62, vFloor + (fl.g - 0.38) * 0.7);
+        diffuseColor.rgb = mix(diffuseColor.rgb, fl.rgb * 0.82, edge);`);
+    };
 
     // ----- The path: a ribbon that follows the ground -----
     {
-      const W = 1.4, n = PATH.length, pos = new Float32Array(n * 2 * 3), uv = new Float32Array(n * 2 * 2), idx = [];
+      const W = 1.8, n = PATH.length, pos = new Float32Array(n * 2 * 3), uv = new Float32Array(n * 2 * 2), idx = [];
       let dist = 0;
       for (let i = 0; i < n; i++) {
         const p = PATH[i], q = PATH[Math.min(n - 1, i + 1)], o = PATH[Math.max(0, i - 1)];
@@ -328,8 +347,16 @@ window.GAME = window.GAME || {};
       }
       const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3)); g.setAttribute('uv', new T.BufferAttribute(uv, 2));
       g.setIndex(idx); g.computeVertexNormals();
-      const pathMesh = new T.Mesh(g, mat.path); pathMesh.receiveShadow = true; scene.add(pathMesh);
-      tiled('textures/ground-path.jpg', mat.path, 1, 1, '#7d6c58');
+      // soft edges: the path fades into the grass instead of ending in a hard line
+      Object.assign(mat.path, { transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+      mat.path.onBeforeCompile = sh => {
+        sh.vertexShader = 'varying float vAcross;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vAcross = uv.x;');
+        sh.fragmentShader = 'varying float vAcross;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+          float e = min(vAcross, 1.0 - vAcross);
+          diffuseColor.a *= smoothstep(0.0, 0.32, e + (diffuseColor.g - 0.3) * 0.15);`);
+      };
+      const pathMesh = new T.Mesh(g, mat.path); pathMesh.receiveShadow = true; pathMesh.renderOrder = 1; scene.add(pathMesh);
+      tiled('textures/ground-dirt.jpg', mat.path, 1, 1, '#a39684');
     }
 
     // ----- The river -----
@@ -470,6 +497,20 @@ window.GAME = window.GAME || {};
       if (clearings.some(c => Math.hypot(x - c.x, z - c.z) < c.r - 6)) continue;
       items.fern.push({ x, z, y: groundH(x, z), s: .7 + rnd() * .8, rot: rnd() * Math.PI * 2 });
     }
+    // forest props: fallen logs, mossy stumps, mushroom clusters (logs and stumps block the way)
+    Object.assign(items, { log: [], stump: [], mushroom: [] });
+    const scatter = (kind, count, pad, minGap, size, r) => {
+      for (let tries = 0; items[kind].length < count && tries < count * 40; tries++) {
+        const x = (rnd() - .5) * L.size, z = (rnd() - .5) * L.size;
+        if (blocked(x, z, pad) || (minGap && occupied(x, z, minGap))) continue;
+        const it = { x, z, y: groundH(x, z) - .05, s: size(), rot: rnd() * Math.PI * 2, r };
+        items[kind].push(it);
+        if (r) { const k = `${Math.floor(x / TG)},${Math.floor(z / TG)}`; (treeGrid.get(k) || treeGrid.set(k, []).get(k)).push(it); }
+      }
+    };
+    scatter('log', 70, 4.5, 2.5, () => .5 + rnd() * .3, 1.1);
+    scatter('stump', 90, 3.2, 1.6, () => .6 + rnd() * .5, .55);
+    scatter('mushroom', 400, 2.2, 0, () => .12 + rnd() * .14, 0);
     const CH = 64;
     function plant(kind, proto, list0 = items[kind]) {   // proto: an Object3D fitted to height 1, standing at the origin
       for (let i = chunks.length - 1; i >= 0; i--) if (chunks[i].kind === kind) { forest.remove(chunks[i].mesh); chunks.splice(i, 1); }
@@ -512,6 +553,8 @@ window.GAME = window.GAME || {};
       }
     });
     plant('fern', buildFern(fmat));
+    [['log', 'fallen-log'], ['stump', 'tree-stump'], ['mushroom', 'mushrooms']].forEach(([kind, file]) =>
+      loader.load(`models/${file}.glb`, g => plant(kind, fit(g.scene, { height: 1 })), undefined, () => console.info(`No model at models/${file}.glb`)));
     // three rock shapes mixed through the forest (falls back to the older rocks.glb, then simple shapes)
     ['rock-boulder', 'rock-slab', 'rock-spire'].forEach((file, v, all) => {
       const list = items.rock.filter((_, i) => i % all.length === v);
@@ -524,7 +567,7 @@ window.GAME = window.GAME || {};
     const HN = 261, hdata = new Uint16Array(HN * HN * 4);
     for (let j = 0; j < HN; j++) for (let i = 0; i < HN; i++) {
       const x = -L.size / 2 + i / (HN - 1) * L.size, z = -L.size / 2 + j / (HN - 1) * L.size, k = (j * HN + i) * 4;
-      const ok = nearestPath(x, z).d > 1.9 && Math.abs(z - RZ) > RW / 2 + 1.2;
+      const ok = nearestPath(x, z).d > 2.2 && Math.abs(z - RZ) > RW / 2 + 1.2 && floorAt(x, z) < .5;
       hdata[k] = T.DataUtils.toHalfFloat(groundH(x, z)); hdata[k + 1] = T.DataUtils.toHalfFloat(ok ? 1 : 0);
       hdata[k + 2] = 0; hdata[k + 3] = T.DataUtils.toHalfFloat(1);
     }
@@ -538,13 +581,28 @@ window.GAME = window.GAME || {};
     readerShapes.forEach(o => { o.visible = false; });   // only shown if the model can't load
     const lantern = add(new T.SphereGeometry(.07, 10, 8), mat.glow, .32, .72, .2, reader);
     const lanternLight = new T.PointLight('#ffa65a', 1.4 * LI, 14, 2); lanternLight.position.set(.32, .85, .3); lanternLight.castShadow = false; reader.add(lanternLight);
+    // The lantern hangs from the right hand, always upright like a real one; the glow becomes its candle flame
+    const lanternRig = new T.Group(); scene.add(lanternRig);
+    reader.remove(lantern); reader.remove(lanternLight); lanternRig.add(lantern, lanternLight);
+    lantern.scale.setScalar(.4); lantern.position.set(0, .12, 0); lanternLight.position.set(0, .14, 0);
+    loader.load('models/lantern.glb', g => { lanternRig.add(fit(g.scene, { height: .3 })); }, undefined, () => console.info('No model at models/lantern.glb'));
+    const handPos = new T.Vector3();
+    let rightHand = null;
     const contact = new T.Mesh(new T.PlaneGeometry(1.6, 1.6), new T.MeshBasicMaterial({ transparent: true, depthWrite: false, color: '#000',
       alphaMap: (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
         const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, '#bbb'); g.addColorStop(1, '#000'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new T.CanvasTexture(c); })() }));
     contact.rotation.x = -Math.PI / 2; contact.position.y = .03; contact.renderOrder = 1; reader.add(contact);   // soft shadow at the feet
     let readerModel = null, readerAnim = null, readerKind = null;
     // Both Readers start loading right away (on the title screen), so the chosen one is ready instantly
-    const readerFiles = {};
+    const readerFiles = {}, readerClips = { boy: {}, girl: {} };
+    ['boy', 'girl'].forEach(k => ['idle', 'run'].forEach(m => loader.load(`models/anim/reader-${k}-${m}.glb`,
+      g => { readerClips[k][m] = g.animations[0]; if (readerKind === k && readerModel) addMotions(k); }, undefined, () => {})));
+    let motions = null;   // { walk, idle, run } actions on the Reader's mixer
+    function addMotions(kind) {
+      if (!readerAnim) return;
+      const mixer = readerAnim.mixer; motions = motions || { walk: readerAnim.action };
+      for (const m of ['idle', 'run']) if (!motions[m] && readerClips[kind][m]) { motions[m] = mixer.clipAction(readerClips[kind][m]); motions[m].play(); motions[m].setEffectiveWeight(0); }
+    }
     ['boy', 'girl'].forEach(k => loader.load(`models/reader-${k}.glb`,
       gltf => { readerFiles[k] = gltf; if (readerKind === k) showReader(k); },
       undefined, () => { readerFiles[k] = 'missing'; if (readerKind === k) showReader(k); }));
@@ -554,10 +612,11 @@ window.GAME = window.GAME || {};
       if (readerModel) { reader.remove(readerModel); const i = mixers.indexOf(readerAnim && readerAnim.mixer); if (i >= 0) mixers.splice(i, 1); readerModel = null; }
       if (gltf === 'missing') { readerShapes.forEach(o => { o.visible = true; }); console.info(`No model at models/reader-${kind}.glb; using a simple shape.`); return; }
       readerModel = matte(fit(gltf.scene, { height: 1.45 }));
+      rightHand = readerModel.getObjectByName('RightHand') || null;
       readerShapes.forEach(o => { o.visible = false; });
       reader.add(readerModel);
-      readerAnim = animate(gltf, readerModel);
-      if (readerAnim) readerAnim.action.timeScale = 0;
+      readerAnim = animate(gltf, readerModel); motions = null;
+      addMotions(kind);
     }
     function setReader(kind) {
       if (kind === readerKind) return;
@@ -779,9 +838,19 @@ window.GAME = window.GAME || {};
       player.y += (gy - player.y) * Math.min(1, dt * 12);
       reader.position.set(player.x, player.y, player.z);
       reader.rotation.y = player.heading;
-      if (readerAnim) readerAnim.action.timeScale = player.speed > .05 ? player.speed / 1.35 : 0;
+      if (motions) {
+        const v = player.speed, run = motions.run ? smooth(2.4, 4.2, v) : 0, idle = motions.idle ? 1 - smooth(.05, .7, v) : 0;
+        const walk = Math.max(0, 1 - run - idle);
+        motions.walk.setEffectiveWeight(walk || (motions.idle ? 0 : 1)); motions.walk.timeScale = motions.idle ? Math.max(.6, v / 1.35) : (v > .05 ? v / 1.35 : 0);
+        if (motions.idle) motions.idle.setEffectiveWeight(idle);
+        if (motions.run) { motions.run.setEffectiveWeight(run); motions.run.timeScale = Math.max(.7, v / 4.2); }
+      }
       for (const m of mixers) m.update(dt);
-      lantern.position.y = .72 + Math.sin(t * 2.4) * .02;
+      // lantern follows the hand (or a fixed spot if there's no rig), hanging plumb with a little swing
+      if (rightHand) { readerModel.updateMatrixWorld(true); rightHand.getWorldPosition(handPos); }
+      else handPos.set(.32, .95, .2).applyAxisAngle(new T.Vector3(0, 1, 0), player.heading).add(reader.position);
+      lanternRig.position.set(handPos.x, handPos.y - .3, handPos.z);
+      lanternRig.rotation.set(Math.sin(t * 2.6) * .05 * Math.min(1, player.speed), player.heading, Math.sin(t * 2.2 + 1) * .06 * Math.min(1, player.speed));
 
       if (walkTarget && Math.hypot(player.x - walkTarget.x, player.z - walkTarget.z) < 3.5) {
         const cb = onArrive; walkTarget = null; onArrive = null; cb && cb();

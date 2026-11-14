@@ -1,0 +1,233 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face { font-family: Cinzel; src: url(assets/cinzel-latin-400-normal.woff2); font-weight: 400; }
+@font-face { font-family: Cinzel; src: url(assets/cinzel-latin-700-normal.woff2); font-weight: 700; }
+@font-face { font-family: Fell; src: url(assets/im-fell-english-latin-400-normal.woff2); }
+@font-face { font-family: Fell; src: url(assets/im-fell-english-latin-400-italic.woff2); font-style: italic; }
+@font-face { font-family: Mono; src: url(assets/jetbrains-mono-latin-400-normal.woff2); }
+@font-face { font-family: Inter; src: url(assets/inter-latin-400-normal.woff2); font-weight: 400; }
+@font-face { font-family: Inter; src: url(assets/inter-latin-600-normal.woff2); font-weight: 600; }
+:root { --gold: #d7b46a; --gold-hi: #f3dca0; --ink: #ece3cf; --dim: #8e8a80; --bg: #06080e; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--bg); color: var(--ink); font-family: Inter, sans-serif; }
+.seg { position: absolute; inset: 0; opacity: 0; }
+.bgglow { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 30%, #1a2236 0%, #06080e 65%); }
+.cap { position: absolute; top: 150px; left: 80px; right: 80px; }
+.step { font-family: Cinzel; font-weight: 700; color: var(--gold); letter-spacing: .35em; font-size: 30px; }
+.head { font-family: Cinzel; font-weight: 700; font-size: 74px; line-height: 1.08; margin-top: 18px; color: #f6eedc; text-shadow: 0 4px 30px rgba(0,0,0,.6); }
+.sub { font-family: Fell; font-style: italic; font-size: 38px; color: #c9bfa8; margin-top: 18px; }
+.foot { position: absolute; bottom: 120px; left: 0; right: 0; text-align: center; font-family: Cinzel; letter-spacing: .4em; font-size: 26px; color: rgba(215,180,106,.75); }
+.grain { position: absolute; inset: 0; pointer-events: none; opacity: .06; mix-blend-mode: overlay; }
+.vig { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.6) 100%); }
+
+/* 1: the idea */
+.chat { position: absolute; top: 620px; left: 80px; right: 80px; display: flex; flex-direction: column; gap: 36px; }
+.bubble { align-self: flex-end; max-width: 860px; background: #1b2232; border: 1px solid #2c3650; border-radius: 34px 34px 8px 34px; padding: 36px 42px; font-size: 42px; line-height: 1.38; color: #f1ece2; box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+.who { font-size: 24px; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; font-weight: 600; }
+.caret { display: inline-block; width: 4px; height: 44px; background: var(--gold-hi); vertical-align: -8px; margin-left: 4px; }
+
+/* 2: repo */
+.term { position: absolute; top: 600px; left: 70px; right: 70px; background: #0c0f16; border: 1px solid #262c3a; border-radius: 22px; box-shadow: 0 30px 80px rgba(0,0,0,.6); overflow: hidden; }
+.term .bar { height: 64px; background: #151a24; display: flex; align-items: center; gap: 14px; padding-left: 28px; }
+.term .bar i { width: 18px; height: 18px; border-radius: 50%; background: #3a4152; display: block; }
+.term .bar span { margin-left: 20px; font-family: Mono; font-size: 24px; color: #7d8598; }
+.term pre { font-family: Mono; font-size: 31px; line-height: 1.62; padding: 34px 38px 44px; color: #d8dde8; white-space: pre-wrap; min-height: 760px; }
+.term .p { color: var(--gold); } .term .ok { color: #8fc49a; } .term .d { color: #7d8598; } .term .f { color: #9db8e8; }
+
+/* 3: moodboard */
+.board { position: absolute; top: 470px; left: 40px; right: 40px; height: 1300px; overflow: hidden; }
+.board .col { position: absolute; top: 0; width: 320px; display: flex; flex-direction: column; gap: 18px; }
+.board img { width: 320px; border-radius: 16px; box-shadow: 0 16px 40px rgba(0,0,0,.5); display: block; }
+
+/* 4: story */
+.page { position: absolute; top: 540px; left: 70px; right: 70px; height: 860px; background: url(assets/parchment.jpg) center / cover; border-radius: 10px; padding: 60px 64px; color: #2a1a0e; box-shadow: 0 30px 80px rgba(0,0,0,.65); }
+.page pre { font-family: Fell; font-size: 40px; line-height: 1.45; white-space: pre-wrap; }
+.page h { font-family: Cinzel; font-weight: 700; font-size: 34px; letter-spacing: .12em; color: #6a3d12; }
+.cast { position: absolute; left: 70px; right: 70px; top: 1450px; display: flex; gap: 22px; }
+.cast figure { flex: 1; text-align: center; }
+.cast img { width: 100%; height: 300px; object-fit: cover; object-position: top; border-radius: 14px; border: 2px solid rgba(215,180,106,.5); background: #e8e2d8; }
+.cast figcaption { font-family: Cinzel; font-size: 22px; letter-spacing: .12em; color: var(--gold-hi); margin-top: 12px; }
+
+/* 5: refine montage */
+.shot { position: absolute; left: 0; right: 0; top: 520px; height: 1000px; display: flex; align-items: center; justify-content: center; }
+.shot .blur { position: absolute; inset: -60px; background-size: cover; background-position: center; filter: blur(40px) brightness(.45); }
+.shot img { position: relative; max-width: 1000px; max-height: 960px; border-radius: 18px; box-shadow: 0 30px 90px rgba(0,0,0,.7); }
+.tag { position: absolute; top: 1560px; left: 0; right: 0; text-align: center; font-family: Cinzel; font-weight: 700; font-size: 44px; letter-spacing: .14em; color: var(--gold-hi); }
+.flash { position: absolute; inset: 0; background: #fff; opacity: 0; mix-blend-mode: screen; }
+
+/* 6: gameplay finale */
+.game { position: absolute; inset: 0; width: 1080px; height: 1920px; object-fit: cover; }
+.title { position: absolute; left: 0; right: 0; top: 720px; text-align: center; opacity: 0; }
+.title h1 { font-family: Cinzel; font-weight: 700; font-size: 128px; letter-spacing: .06em; line-height: 1;
+  background: linear-gradient(180deg, #fff6d8, #f0d58a 40%, #c9a24a 72%, #7a5a22); -webkit-background-clip: text; color: transparent; filter: drop-shadow(0 6px 20px rgba(0,0,0,.9)); }
+.title p { font-family: Fell; font-style: italic; font-size: 44px; color: #efe5cf; margin-top: 26px; text-shadow: 0 2px 14px #000; }
+.handle { position: absolute; bottom: 230px; left: 0; right: 0; text-align: center; font-family: Inter; font-weight: 600; font-size: 40px; color: #fff; opacity: 0; text-shadow: 0 2px 14px #000; letter-spacing: .04em; }
+.shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.45), transparent 30%, transparent 60%, rgba(0,0,0,.6)); }
+.gcap { position: absolute; top: 160px; left: 0; right: 0; text-align: center; font-family: Cinzel; font-weight: 700; font-size: 40px; letter-spacing: .25em; color: #f3dca0; text-shadow: 0 2px 16px #000; opacity: 0; }
+</style></head>
+<body>
+<div class="bgglow"></div>
+
+<section class="seg" id="s1">
+  <div class="cap"><div class="step">01 · DAY ONE</div><div class="head">It started with an idea</div><div class="sub">a game about the demons we all carry</div></div>
+  <div class="chat">
+    <div class="bubble" id="b1"><div class="who">me</div><span id="t1"></span><span class="caret" id="c1"></span></div>
+    <div class="bubble" id="b2" style="opacity:0"><div class="who">me</div><span id="t2"></span><span class="caret" id="c2"></span></div>
+  </div>
+</section>
+
+<section class="seg" id="s2">
+  <div class="cap"><div class="step">02 · THE REPO</div><div class="head">Built in a GitHub repository</div><div class="sub">every change saved, every step tracked</div></div>
+  <div class="term"><div class="bar"><i></i><i></i><i></i><span>lost-wisdom — zsh</span></div><pre id="term"></pre></div>
+</section>
+
+<section class="seg" id="s3">
+  <div class="cap"><div class="step">03 · INSPIRATION</div><div class="head">A moodboard from Pinterest</div><div class="sub">libraries, ink, moonlight, gold</div></div>
+  <div class="board" id="board"></div>
+</section>
+
+<section class="seg" id="s4">
+  <div class="cap"><div class="step">04 · THE STORY</div><div class="head">Writing the world</div><div class="sub">scenes, characters, inner demons</div></div>
+  <div class="page"><pre id="story"></pre></div>
+  <div class="cast" id="cast">
+    <figure><img src="assets/reader-boy.jpg"><figcaption>The Reader</figcaption></figure>
+    <figure><img src="assets/reader-girl.jpg"><figcaption>or her</figcaption></figure>
+    <figure><img src="assets/hooded-figure.jpg"><figcaption>The Hooded</figcaption></figure>
+    <figure><img src="assets/demon.jpg"><figcaption>The Demons</figcaption></figure>
+  </div>
+</section>
+
+<section class="seg" id="s5">
+  <div class="cap"><div class="step">05 · ITERATION</div><div class="head">Generate. Refine.<br>Refine. Refine.</div></div>
+  <div class="shot"><div class="blur" id="sblur"></div><img id="simg"></div>
+  <div class="tag" id="stag"></div>
+  <div class="flash" id="sflash"></div>
+</section>
+
+<section class="seg" id="s6">
+  <img class="game" id="gimg">
+  <div class="shade"></div>
+  <div class="gcap" id="gcap">NOW · IN ENGINE</div>
+  <div class="title" id="title"><h1>LOST<br>WISDOM</h1><p>a game in progress</p></div>
+  <div class="handle" id="handle">@aliigpt</div>
+</section>
+
+<div class="foot" id="foot">LOST WISDOM · DEVLOG</div>
+<canvas class="grain" id="grain" width="540" height="960"></canvas>
+<div class="vig"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
+const ease = x => 1 - Math.pow(1 - clamp(x), 3);
+const SEG = [[0, 4.6], [4.6, 9.2], [9.2, 14], [14, 18.6], [18.6, 24], [24, 30]];
+const FADE = .35;
+const HANDLE = new URLSearchParams(location.search).get('handle') || 'aliigpt';
+$('#handle').textContent = '@' + HANDLE;
+
+// 1
+const T1 = 'i want to code a creative game in a visually appealing interactive webapp.';
+const T2 = 'genre: cozy puzzle game in an imaginary world where u do tasks but is often being hindered by ur inner demons';
+// 2
+const TERM = [
+  ['<span class="p">$</span> git init lost-wisdom', .2], ['<span class="d">Initialized empty Git repository</span>', 0],
+  ['<span class="p">$</span> git add . && git commit -m "first prototype"', .25], ['<span class="ok">[main] first prototype · 24 files</span>', 0],
+  ['<span class="p">$</span> git push -u origin main', .25], ['<span class="ok">→ github.com/aliigpt/lost-wisdom</span>', 0],
+  ['', 0], ['<span class="f">lost-wisdom/</span>', 0], ['├─ <span class="f">design/</span>  inspiration · story · concepts', 0],
+  ['├─ <span class="f">game/</span>    src · content · models · audio', 0], ['└─ README.md', 0]
+];
+// 3
+const IMGS = Array.from({ length: 19 }, (_, i) => `assets/insp/${String(i).padStart(2, '0')}.jpg`);
+const board = $('#board');
+const cols = [0, 1, 2].map(c => { const d = document.createElement('div'); d.className = 'col'; d.style.left = (c * 338) + 'px'; board.appendChild(d); return d; });
+IMGS.forEach((src, i) => { const im = document.createElement('img'); im.src = src; im.dataset.i = i; cols[i % 3].appendChild(im); });
+// 4
+const STORY = `<h>PREMISE</h>
+Every night the Reader enters the clock tower to transcribe, and must be home before sunrise.
+
+<h>INNER DEMONS</h>
+The Fog · depression
+The Flutter · anxiety
+The Stern Quill · perfectionism
+The Closing Wall · agoraphobia`;
+// 5
+let PROG = [];
+fetch('assets/prog.json').then(r => r.json()).then(j => { PROG = j; });
+// grain
+const g = $('#grain').getContext('2d');
+function grain(seed) {
+  const d = g.createImageData(540, 960); let s = seed * 9301 + 49297;
+  for (let i = 0; i < d.data.length; i += 4) { s = (s * 16807) % 2147483647; const v = s % 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
+  g.putImageData(d, 0, 0);
+}
+function typed(text, p) { return text.slice(0, Math.floor(text.length * clamp(p))); }
+function stripTags(html, n) {   // reveal n visible characters of an html string
+  let out = '', count = 0, inTag = false;
+  for (const ch of html) { if (ch === '<') inTag = true; if (inTag) { out += ch; if (ch === '>') inTag = false; continue; } if (count >= n) break; out += ch; count++; }
+  return out;
+}
+
+window.render = async function (t, frameSrc) {
+  SEG.forEach(([a, b], i) => {
+    const el = $('#s' + (i + 1));
+    const o = clamp((t - a) / FADE) * clamp((b - t) / FADE + (i === SEG.length - 1 ? 1 : 0));
+    el.style.opacity = o; el.style.transform = `translateY(${(1 - ease((t - a) / .8)) * 30}px)`;
+  });
+  $('#foot').style.opacity = (t < 8.9 || (t > 18.7 && t < 23.7)) ? 1 : 0;
+  grain(Math.floor(t * 30));
+
+  // 1: typing the first message
+  if (t < 4.8) {
+    const p1 = (t - .5) / 1.9, p2 = (t - 2.6) / 1.9;
+    $('#t1').textContent = typed(T1, p1); $('#c1').style.opacity = (p1 < 1.05 && Math.floor(t * 4) % 2 === 0) || p1 < 1 ? 1 : 0;
+    $('#b2').style.opacity = clamp((t - 2.4) * 4); $('#b2').style.transform = `translateY(${(1 - ease((t - 2.4) * 2)) * 40}px)`;
+    $('#t2').textContent = typed(T2, p2); $('#c2').style.opacity = p2 > 0 && (p2 < 1 || Math.floor(t * 4) % 2 === 0) ? 1 : 0;
+  }
+  // 2: the terminal
+  if (t > 4.3 && t < 9.5) {
+    const lt = t - 4.9; let out = [], clock = 0;
+    for (const [line, typeTime] of TERM) {
+      const plain = line.replace(/<[^>]+>/g, '');
+      const dur = typeTime ? plain.length * .021 : .12;
+      if (lt < clock) break;
+      const k = typeTime ? Math.floor((lt - clock) / .021) : plain.length;
+      out.push(stripTags(line, k)); clock += dur + (typeTime ? .15 : .05);
+    }
+    $('#term').innerHTML = out.join('\n') + (Math.floor(t * 4) % 2 ? '▌' : '');
+  }
+  // 3: images arrive one by one, the board drifts up
+  if (t > 8.9 && t < 14.3) {
+    const lt = t - 9.3;
+    board.querySelectorAll('img').forEach(im => {
+      const i = +im.dataset.i, p = ease((lt - i * .14) / .5);
+      im.style.opacity = p; im.style.transform = `translateY(${(1 - p) * 120}px) scale(${.92 + p * .08})`;
+    });
+    cols.forEach((c, i) => { c.style.transform = `translateY(${-lt * (40 + i * 18)}px)`; });
+  }
+  // 4: writing the story, then the cast
+  if (t > 13.7 && t < 18.9) {
+    const lt = t - 14.3, n = Math.floor(lt / .0155);
+    $('#story').innerHTML = stripTags(STORY, n) + (Math.floor(t * 4) % 2 ? '▌' : '');
+    $('#cast').querySelectorAll('figure').forEach((f, i) => { const p = ease((t - 16.6 - i * .18) / .5); f.style.opacity = p; f.style.transform = `translateY(${(1 - p) * 60}px)`; });
+  }
+  // 5: montage of every version
+  if (t > 18.3 && t < 24.3 && PROG.length) {
+    const lt = Math.max(0, t - 18.9), per = 4.9 / PROG.length, i = Math.min(PROG.length - 1, Math.floor(lt / per)), f = (lt - i * per) / per;
+    const p = PROG[i];
+    if ($('#simg').dataset.src !== p.src) { $('#simg').src = p.src; $('#simg').dataset.src = p.src; $('#sblur').style.backgroundImage = `url(${p.src})`; await $('#simg').decode().catch(() => {}); }
+    $('#simg').style.transform = `scale(${1.02 + f * .06})`;
+    $('#stag').textContent = p.label;
+    $('#sflash').style.opacity = clamp(1 - f / .12) * .55 * (lt > .05 ? 1 : 0);
+  }
+  // 6: real gameplay, then the title
+  if (t >= 23.6) {
+    if (frameSrc && $('#gimg').dataset.src !== frameSrc) { $('#gimg').src = frameSrc; $('#gimg').dataset.src = frameSrc; await $('#gimg').decode().catch(() => {}); }
+    $('#gcap').style.opacity = clamp((t - 24.2) * 3) * clamp((27.6 - t) * 3);
+    $('#title').style.opacity = ease((t - 27.7) / .8);
+    $('#title').style.transform = `scale(${1.06 - ease((t - 27.7) / 1.6) * .06})`;
+    $('#handle').style.opacity = ease((t - 28.6) / .6);
+  }
+};
+</script>
+</body></html>
