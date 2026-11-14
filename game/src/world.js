@@ -19,6 +19,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { Water } from 'three/addons/objects/Water.js';
+import { foliageMaterials, buildOak, buildPine, buildFern, buildGrass, wind, gust } from './foliage.js';
 
 window.GAME = window.GAME || {};
 
@@ -112,6 +113,7 @@ window.GAME = window.GAME || {};
     renderer.shadowMap.type = T.PCFSoftShadowMap;
     renderer.toneMapping = T.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.2;
+    const fmat = foliageMaterials(renderer);
 
     const scene = new T.Scene();
     const camera = new T.PerspectiveCamera(55, 1, .1, 900);
@@ -123,7 +125,8 @@ window.GAME = window.GAME || {};
     const COLD = { top: C('#020306'), bottom: C('#141a24'), fog: C('#10141b'), hSky: C('#6f7f9c'), hGround: C('#0d0f13'), hemi: .3, moon: .15, density: .045 };
     const GREY = C('#6b7079');
 
-    // ----- Sky: gradient dome, stars, painted horizon (all follow the camera) -----
+    // ----- Sky (all of it follows the camera, so it always looks infinitely far) -----
+    // gradient dome -> painted horizon -> twinkling, slowly turning stars -> moon -> drifting clouds
     const sky = new T.Group(); scene.add(sky);
     const skyMat = new T.ShaderMaterial({
       side: T.BackSide, depthWrite: false, fog: false,
@@ -132,22 +135,104 @@ window.GAME = window.GAME || {};
       fragmentShader: 'uniform vec3 top; uniform vec3 bottom; varying vec3 vP; void main(){ float h = clamp(vP.y * 1.4 + .15, 0., 1.); gl_FragColor = vec4(mix(bottom, top, h), 1.);\n#include <colorspace_fragment>\n}'
     });
     sky.add(new T.Mesh(new T.SphereGeometry(600, 32, 16), skyMat));
-    const STARS = 2000, starPos = new Float32Array(STARS * 3);
-    for (let i = 0; i < STARS; i++) {
-      const y = .15 + Math.random() * .85, th = Math.random() * Math.PI * 2, r = Math.sqrt(1 - y * y);
-      starPos.set([Math.cos(th) * r * 560, y * 560, Math.sin(th) * r * 560], i * 3);
-    }
-    const starGeo = new T.BufferGeometry(); starGeo.setAttribute('position', new T.BufferAttribute(starPos, 3));
-    const starMat = new T.PointsMaterial({ color: '#dfe6ff', size: 1.6, sizeAttenuation: true, fog: false, transparent: true, opacity: .8, depthWrite: false });
-    sky.add(new T.Points(starGeo, starMat));
-    const backdropMat = new T.MeshBasicMaterial({ side: T.BackSide, fog: false, depthWrite: false, transparent: true, opacity: 0 });
-    const backdrop = new T.Mesh(new T.CylinderGeometry(480, 480, 300, 64, 1, true), backdropMat);
-    backdrop.position.y = 70; sky.add(backdrop);
+
+    // painted horizon (mountains, mist), fading out toward the top so it blends into the dome
+    const fadeTex = (() => { const c = document.createElement('canvas'); c.width = 4; c.height = 256; const x = c.getContext('2d');
+      const g = x.createLinearGradient(0, 0, 0, 256); g.addColorStop(0, '#000'); g.addColorStop(.35, '#000'); g.addColorStop(.6, '#fff'); g.addColorStop(1, '#fff');
+      x.fillStyle = g; x.fillRect(0, 0, 4, 256); return new T.CanvasTexture(c); })();
+    const backdropMat = new T.MeshBasicMaterial({ side: T.BackSide, fog: false, depthWrite: false, transparent: true, opacity: 0, alphaMap: fadeTex });
+    const backdrop = new T.Mesh(new T.CylinderGeometry(480, 480, 300, 96, 1, true), backdropMat);
+    backdrop.position.y = 70; backdrop.renderOrder = -9; sky.add(backdrop);
     new T.TextureLoader().load('textures/backdrop.jpg', tex => {
-      tex.colorSpace = T.SRGBColorSpace; tex.wrapS = T.MirroredRepeatWrapping; tex.repeat.set(4, 1);
+      tex.colorSpace = T.SRGBColorSpace; tex.wrapS = T.MirroredRepeatWrapping; tex.repeat.set(4, 1); tex.anisotropy = 8;
       backdropMat.map = tex; backdropMat.opacity = 1; backdropMat.needsUpdate = true;
     }, undefined, () => console.info('No backdrop at textures/backdrop.jpg'));
+
+    // stars: each one twinkles at its own speed; the whole sky turns slowly around a tilted axis
+    const STARS = 3600, sPos = new Float32Array(STARS * 3), sSize = new Float32Array(STARS), sPhase = new Float32Array(STARS), sCol = new Float32Array(STARS * 3);
+    for (let i = 0; i < STARS; i++) {
+      const u = Math.random() * 2 - 1, th = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u);
+      sPos.set([Math.cos(th) * r * 560, u * 560, Math.sin(th) * r * 560], i * 3);
+      sSize[i] = 1.2 + Math.pow(Math.random(), 6) * 5.5; sPhase[i] = Math.random() * 100;
+      const warm = Math.random(); sCol.set([.85 + warm * .15, .88 + warm * .07, 1 - warm * .2], i * 3);
+    }
+    const starGeo = new T.BufferGeometry();
+    starGeo.setAttribute('position', new T.BufferAttribute(sPos, 3)); starGeo.setAttribute('aSize', new T.BufferAttribute(sSize, 1));
+    starGeo.setAttribute('aPhase', new T.BufferAttribute(sPhase, 1)); starGeo.setAttribute('aCol', new T.BufferAttribute(sCol, 3));
+    const starMat = new T.ShaderMaterial({
+      transparent: true, depthWrite: false, blending: T.AdditiveBlending, fog: false,
+      uniforms: { uTime: { value: 0 }, uOpacity: { value: 1 }, uScale: { value: Math.min(2, devicePixelRatio || 1) } },
+      vertexShader: `attribute float aSize; attribute float aPhase; attribute vec3 aCol; uniform float uTime; uniform float uScale;
+        varying vec3 vCol; varying float vA;
+        void main(){
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          float tw = 0.6 + 0.4 * sin(uTime * (1.2 + fract(aPhase * 7.13) * 3.5) + aPhase) * sin(uTime * 0.7 + aPhase * 3.1);
+          vA = tw * smoothstep(-10.0, 140.0, wp.y - cameraPosition.y);
+          vCol = aCol;
+          gl_Position = projectionMatrix * viewMatrix * wp;
+          gl_PointSize = aSize * uScale * (0.75 + 0.35 * tw);
+        }`,
+      fragmentShader: `uniform float uOpacity; varying vec3 vCol; varying float vA;
+        void main(){ float d = length(gl_PointCoord - 0.5); float a = smoothstep(0.5, 0.0, d); gl_FragColor = vec4(vCol * a, a * vA * uOpacity); }`
+    });
+    const starPivot = new T.Group(); starPivot.rotation.set(.55, 0, .2); sky.add(starPivot);
+    const stars = new T.Points(starGeo, starMat); stars.renderOrder = -8; stars.frustumCulled = false; starPivot.add(stars);
+
+    // shooting stars
+    const meteorGeo = new T.BufferGeometry();
+    meteorGeo.setAttribute('position', new T.BufferAttribute(new Float32Array(6), 3));
+    meteorGeo.setAttribute('color', new T.BufferAttribute(new Float32Array([1, 1, 1, 1, .7, .8, 1, 0]), 4));
+    const meteor = new T.Line(meteorGeo, new T.LineBasicMaterial({ vertexColors: true, transparent: true, fog: false, depthWrite: false, blending: T.AdditiveBlending }));
+    meteor.visible = false; meteor.renderOrder = -7; meteor.frustumCulled = false; sky.add(meteor);
+    let meteorT = -1, nextMeteor = 8 + Math.random() * 15; const mA = new T.Vector3(), mB = new T.Vector3();
+
+    // the moon: a real moon texture, with a soft halo; it travels across the sky during the night
+    const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+      const g = x.createRadialGradient(128, 128, 0, 128, 128, 128); g.addColorStop(0, 'rgba(220,228,255,.55)'); g.addColorStop(.18, 'rgba(190,205,240,.22)'); g.addColorStop(1, 'rgba(160,180,230,0)');
+      x.fillStyle = g; x.fillRect(0, 0, 256, 256); const t = new T.CanvasTexture(c); t.colorSpace = T.SRGBColorSpace; return t; })();
+    const moonDisc = new T.Sprite(new T.SpriteMaterial({ color: '#f2efe4', fog: false, depthWrite: false, transparent: true }));
+    new T.TextureLoader().load('textures/moon.webp', t => { t.colorSpace = T.SRGBColorSpace; moonDisc.material.map = t; moonDisc.material.needsUpdate = true; });
+    moonDisc.scale.setScalar(24); moonDisc.renderOrder = -7;
+    const moonGlow = new T.Sprite(new T.SpriteMaterial({ map: glowTex, fog: false, depthWrite: false, transparent: true, blending: T.AdditiveBlending }));
+    moonGlow.scale.setScalar(190); moonGlow.renderOrder = -7;
+    sky.add(moonGlow, moonDisc);
+
+    // clouds: thin, moonlit, drifting with the wind
+    const cloudMat = new T.ShaderMaterial({
+      side: T.BackSide, transparent: true, depthWrite: false, fog: false,
+      uniforms: { uOff: { value: new T.Vector2() }, uMoon: { value: new T.Vector3(0, 1, 0) }, uCover: { value: .5 }, uLit: { value: C('#8e9bb8') }, uDark: { value: C('#141a28') }, uAlpha: { value: .8 } },
+      vertexShader: 'varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `uniform vec2 uOff; uniform vec3 uMoon; uniform float uCover; uniform vec3 uLit; uniform vec3 uDark; uniform float uAlpha; varying vec3 vDir;
+        float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        float noise(vec2 p){ vec2 i = floor(p), f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);
+          return mix(mix(hash(i), hash(i + vec2(1, 0)), u.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), u.x), u.y); }
+        float fbm(vec2 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 6; i++){ s += a * noise(p); p = p * 2.03 + 17.1; a *= 0.5; } return s; }
+        void main(){
+          vec3 d = normalize(vDir);
+          if (d.y < 0.01) discard;
+          vec2 uv = d.xz / (d.y + 0.18) * 1.6 + uOff;
+          float n = fbm(uv), detail = fbm(uv * 3.1 + 5.0);
+          float dens = smoothstep(uCover, uCover + 0.3, n * 0.8 + detail * 0.3) * smoothstep(0.02, 0.3, d.y);
+          float lit = pow(max(dot(d, uMoon), 0.0), 7.0);
+          vec3 col = mix(uDark, uLit, clamp(0.15 + lit * 1.1 + (1.0 - detail) * 0.25, 0.0, 1.3));
+          gl_FragColor = vec4(col, dens * uAlpha);
+          #include <colorspace_fragment>
+        }`
+    });
+    const clouds = new T.Mesh(new T.SphereGeometry(540, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2), cloudMat);
+    clouds.renderOrder = -6; sky.add(clouds);
     scene.fog = new T.FogExp2(0x000000, .03);
+
+    // ----- The night: 0 = dusk, 1 = sunrise. The moon's path and the light follow it. -----
+    const NIGHT_SECONDS = 15 * 60;   // how long one night lasts in real time
+    let night = .06;
+    const MOON_DIR = new T.Vector3();
+    function moonDirAt(p) {
+      const az = lerp(-1.3, 1.3, p), el = .16 + .66 * Math.sin(Math.PI * clamp(p, 0, 1));
+      return MOON_DIR.set(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el)).normalize();
+    }
+    moonDirAt(night);
+    const DAWN = { bottom: C('#5a3f4c'), top: C('#1a2440'), fog: C('#3a3346') };
 
     // ----- Light -----
     const hemi = new T.HemisphereLight(0xffffff, 0x222222, .5); scene.add(hemi);
@@ -155,7 +240,6 @@ window.GAME = window.GAME || {};
     moon.castShadow = true; moon.shadow.mapSize.set(2048, 2048); moon.shadow.bias = -.0004; moon.shadow.normalBias = .04;
     Object.assign(moon.shadow.camera, { left: -32, right: 32, top: 32, bottom: -32, near: 1, far: 140 });
     scene.add(moon, moon.target);
-    const MOON_DIR = new T.Vector3(-.45, .75, -.5).normalize();
 
     // ----- Materials and helpers -----
     const texLoader = new T.TextureLoader();
@@ -185,7 +269,7 @@ window.GAME = window.GAME || {};
     for (let i = 0; i < tp.count; i++) tp.setY(i, groundH(tp.getX(i), tp.getZ(i)));
     tGeo.computeVertexNormals();
     const terrain = new T.Mesh(tGeo, mat.ground); terrain.receiveShadow = true; scene.add(terrain);
-    tiled('textures/grass.jpg', mat.ground, L.size / 7, L.size / 7, '#8b9878');
+    tiled('textures/ground-grass.jpg', mat.ground, L.size / 7, L.size / 7, '#8b9878');
 
     // ----- The path: a ribbon that follows the ground -----
     {
@@ -206,7 +290,7 @@ window.GAME = window.GAME || {};
       const g = new T.BufferGeometry(); g.setAttribute('position', new T.BufferAttribute(pos, 3)); g.setAttribute('uv', new T.BufferAttribute(uv, 2));
       g.setIndex(idx); g.computeVertexNormals();
       const pathMesh = new T.Mesh(g, mat.path); pathMesh.receiveShadow = true; scene.add(pathMesh);
-      tiled('textures/cobble.jpg', mat.path, 1, 1, '#7d6c58');
+      tiled('textures/ground-path.jpg', mat.path, 1, 1, '#7d6c58');
     }
 
     // ----- The river -----
@@ -226,6 +310,19 @@ window.GAME = window.GAME || {};
       sunDirection: MOON_DIR.clone(), sunColor: '#4d5b7a', waterColor: '#02070e', distortionScale: 2.4, fog: true
     });
     water.rotation.x = -Math.PI / 2; water.position.set(0, WATER_Y, RZ); scene.add(water);
+    // the current: streaks that drift downstream (toward -x), two layers at different speeds
+    const flowTex = (() => { const c = document.createElement('canvas'); c.width = 512; c.height = 128; const x = c.getContext('2d');
+      x.fillStyle = '#000'; x.fillRect(0, 0, 512, 128);
+      for (let i = 0; i < 260; i++) { const y = Math.random() * 128, w = 20 + Math.random() * 120, x0 = Math.random() * 512, a = .15 + Math.random() * .5;
+        const g = x.createLinearGradient(x0, 0, x0 + w, 0); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(.5, `rgba(255,255,255,${a})`); g.addColorStop(1, 'rgba(255,255,255,0)');
+        x.fillStyle = g; x.fillRect(x0, y, w, 1 + Math.random() * 1.5); }
+      const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; return t; })();
+    const flows = [[16, 1.3, .055, .12], [9, .8, .03, .08]].map(([rep, repY, speed, op]) => {
+      const tex = flowTex.clone(); tex.needsUpdate = true; tex.repeat.set(L.size / rep, repY);
+      const m = new T.Mesh(new T.PlaneGeometry(L.size, RW + 3), new T.MeshBasicMaterial({ map: tex, transparent: true, opacity: op, depthWrite: false, blending: T.AdditiveBlending, color: '#8fa6cc' }));
+      m.rotation.x = -Math.PI / 2; m.position.set(0, WATER_Y + .03, RZ); scene.add(m);
+      return { tex, speed, mat: m.material, op };
+    });
 
     // ----- Ground mist (soft sprites over the river and in hollows) -----
     const mistTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
@@ -291,7 +388,7 @@ window.GAME = window.GAME || {};
     // ----- The forest: instanced trees and rocks in chunks (so off-screen chunks are skipped) -----
     const forest = new T.Group(); scene.add(forest);
     const chunks = [];
-    const items = { oak: [], pine: [], rock: [] };
+    const items = { oak: [], pine: [], rock: [], fern: [] };
     const treeGrid = new Map(), TG = 4;
     const occupied = (x, z, r) => {
       const cx = Math.floor(x / TG), cz = Math.floor(z / TG);
@@ -319,14 +416,22 @@ window.GAME = window.GAME || {};
       items.rock.push(t);
       const k = `${Math.floor(x / TG)},${Math.floor(z / TG)}`; (treeGrid.get(k) || treeGrid.set(k, []).get(k)).push(t);
     }
+    // ferns and undergrowth: thickest along the path, thinner deeper in the woods
+    for (let tries = 0; items.fern.length < 3200 && tries < 30000; tries++) {
+      const x = (rnd() - .5) * L.size, z = (rnd() - .5) * L.size, d = nearestPath(x, z).d;
+      if (d < 2.1 || Math.abs(z - RZ) < RW / 2 + 1.5 || Math.hypot(x, z) > L.size / 2 - 12) continue;
+      if (rnd() > 1.4 - d / 40) continue;
+      if (clearings.some(c => Math.hypot(x - c.x, z - c.z) < c.r - 6)) continue;
+      items.fern.push({ x, z, y: groundH(x, z), s: .7 + rnd() * .8, rot: rnd() * Math.PI * 2 });
+    }
     const CH = 64;
-    function plant(kind, proto) {   // proto: an Object3D fitted to height 1, standing at the origin
+    function plant(kind, proto, list0 = items[kind]) {   // proto: an Object3D fitted to height 1, standing at the origin
       for (let i = chunks.length - 1; i >= 0; i--) if (chunks[i].kind === kind) { forest.remove(chunks[i].mesh); chunks.splice(i, 1); }
       proto.updateMatrixWorld(true);
       const parts = []; proto.traverse(o => { if (o.isMesh) parts.push(o); });
       const groups = new Map();
-      for (const it of items[kind]) { const k = `${Math.floor(it.x / CH)},${Math.floor(it.z / CH)}`; (groups.get(k) || groups.set(k, []).get(k)).push(it); }
-      const m = new T.Matrix4(), q = new T.Quaternion(), up = new T.Vector3(0, 1, 0), s = new T.Vector3(), p = new T.Vector3();
+      for (const it of list0) { const k = `${Math.floor(it.x / CH)},${Math.floor(it.z / CH)}`; (groups.get(k) || groups.set(k, []).get(k)).push(it); }
+      const m = new T.Matrix4(), q = new T.Quaternion(), up = new T.Vector3(0, 1, 0), s = new T.Vector3(), p = new T.Vector3(), tint = new T.Color();
       for (const [key, list] of groups) {
         const [cx, cz] = key.split(',').map(Number);
         for (const part of parts) {
@@ -334,8 +439,14 @@ window.GAME = window.GAME || {};
           list.forEach((it, j) => {
             q.setFromAxisAngle(up, it.rot); s.setScalar(it.s); p.set(it.x, it.y, it.z);
             m.compose(p, q, s).multiply(part.matrixWorld); im.setMatrixAt(j, m);
+            if (part.material.userData.isFoliage) {   // every tree a slightly different green
+              const h = hash(it.x, it.z), k = .78 + h * .38;
+              tint.setRGB(k * (.92 + hash(it.z, it.x) * .16), k, k * (.85 + h * .2)); im.setColorAt(j, tint);
+            }
           });
-          im.castShadow = kind !== 'rock'; im.receiveShadow = true; im.computeBoundingSphere();
+          if (part.customDepthMaterial) im.customDepthMaterial = part.customDepthMaterial;
+          // leaves cast shadows on the ground but don't shadow each other (that made blotchy crowns)
+          im.castShadow = kind !== 'rock' && kind !== 'fern'; im.receiveShadow = !part.material.userData.isFoliage; im.computeBoundingSphere();
           forest.add(im); chunks.push({ kind, mesh: im, x: (cx + .5) * CH, z: (cz + .5) * CH });
         }
       }
@@ -347,12 +458,29 @@ window.GAME = window.GAME || {};
       else add(new T.DodecahedronGeometry(.5, 0), mat.stone, 0, .3, 0, g);
       return g;
     }
-    ['oak', 'pine', 'rock'].forEach(kind => {
-      plant(kind, standIn(kind));
-      const file = { oak: 'tree-oak', pine: 'tree-pine', rock: 'rocks' }[kind];
-      loader.load(`models/${file}.glb`, g => plant(kind, fit(g.scene, { height: kind === 'rock' ? .9 : 1 })),
-        undefined, () => console.info(`No model at models/${file}.glb; using simple trees.`));
+    // Trees are grown from photo textures (see foliage.js), three shapes of each kind
+    const VARIANTS = 3;
+    ['oak', 'pine'].forEach(kind => {
+      for (let v = 0; v < VARIANTS; v++) {
+        const list = items[kind].filter((_, i) => i % VARIANTS === v);
+        plant(`${kind}${v}`, kind === 'oak' ? buildOak(100 + v, fmat) : buildPine(200 + v, fmat), list);
+      }
     });
+    plant('fern', buildFern(fmat));
+    plant('rock', standIn('rock'));
+    loader.load('models/rocks.glb', g => plant('rock', fit(g.scene, { height: .9 })), undefined, () => console.info('No model at models/rocks.glb; using simple rocks.'));
+
+    // Grass that follows the Reader: needs the ground height (R) and where grass may grow (G) as a texture
+    const HN = 261, hdata = new Uint16Array(HN * HN * 4);
+    for (let j = 0; j < HN; j++) for (let i = 0; i < HN; i++) {
+      const x = -L.size / 2 + i / (HN - 1) * L.size, z = -L.size / 2 + j / (HN - 1) * L.size, k = (j * HN + i) * 4;
+      const ok = nearestPath(x, z).d > 1.9 && Math.abs(z - RZ) > RW / 2 + 1.2;
+      hdata[k] = T.DataUtils.toHalfFloat(groundH(x, z)); hdata[k + 1] = T.DataUtils.toHalfFloat(ok ? 1 : 0);
+      hdata[k + 2] = 0; hdata[k + 3] = T.DataUtils.toHalfFloat(1);
+    }
+    const heightTex = new T.DataTexture(hdata, HN, HN, T.RGBAFormat, T.HalfFloatType);
+    heightTex.minFilter = heightTex.magFilter = T.LinearFilter; heightTex.needsUpdate = true;
+    const grass = buildGrass(fmat, heightTex, L.size); scene.add(grass);
 
     // ----- The Reader (boy or girl) and the player controller -----
     const reader = new T.Group(); scene.add(reader);
@@ -524,18 +652,27 @@ window.GAME = window.GAME || {};
     function frame() {
       const dt = Math.min(.05, clock.getDelta()), t = clock.elapsedTime;
       mood += (moodT - mood) * .025; fogAmt += (fogT - fogAmt) * .02;
+      // wind: slow swells with quicker gusts on top; stronger when a demon is near
+      gust.value = (.35 + .65 * (.5 + .5 * Math.sin(t * .21)) * (.6 + .4 * Math.sin(t * .63 + 1.3))) * (1 + mood * .5);
+      wind.value += dt;
+      // the night moves on; the moon travels with it
+      night = Math.min(1, night + dt / NIGHT_SECONDS);
+      moonDirAt(night);
+      const dawn = smooth(.82, 1, night);
 
       // colors and light
       const g = fogAmt * .6;
       skyMat.uniforms.top.value.copy(mix(WARM.top, COLD.top, mood)).lerp(GREY, g * .5);
       skyMat.uniforms.bottom.value.copy(mix(WARM.bottom, COLD.bottom, mood)).lerp(GREY, g);
-      scene.fog.color.copy(mix(WARM.fog, COLD.fog, mood)).lerp(GREY, g);
+      skyMat.uniforms.bottom.value.lerp(DAWN.bottom, dawn * .8); skyMat.uniforms.top.value.lerp(DAWN.top, dawn * .6);
+      scene.fog.color.copy(mix(WARM.fog, COLD.fog, mood)).lerp(GREY, g).lerp(DAWN.fog, dawn * .7);
       scene.fog.density = lerp(WARM.density, COLD.density, mood) + fogAmt * .05;
       hemi.color.copy(mix(WARM.hSky, COLD.hSky, mood)); hemi.groundColor.copy(mix(WARM.hGround, COLD.hGround, mood));
       hemi.intensity = lerp(WARM.hemi, COLD.hemi, mood) * (1 - fogAmt * .3) * LI;
-      moon.intensity = lerp(WARM.moon, COLD.moon, mood) * (1 - fogAmt * .6) * LI;
+      moon.intensity = lerp(WARM.moon, COLD.moon, mood) * (1 - fogAmt * .6) * smooth(.02, .3, MOON_DIR.y) * LI;
       backdropMat.color.setScalar(1 - Math.max(mood, fogAmt) * .6);
-      starMat.opacity = .8 * (1 - Math.max(mood, fogAmt) * .85);
+      starMat.uniforms.uOpacity.value = (1 - Math.max(mood, fogAmt) * .85) * (1 - dawn);
+      starMat.uniforms.uTime.value = t;
       lanternLight.intensity = (2.2 + mood * 1.5) * LI * (shaking ? .6 + Math.random() * .6 : 1);
       rainMat.opacity = mood * .45;
 
@@ -587,6 +724,28 @@ window.GAME = window.GAME || {};
       if (shaking && !reduce) camera.position.add(v3.set((Math.random() - .5) * .06, (Math.random() - .5) * .06, 0));
       camera.lookAt(camLook);
       sky.position.set(camera.position.x, 0, camera.position.z);
+      starPivot.rotation.y = night * 1.4 + t * .002;                                   // the stars wheel across the sky
+      moonDisc.position.copy(MOON_DIR).multiplyScalar(500); moonGlow.position.copy(MOON_DIR).multiplyScalar(505);
+      moonDisc.material.opacity = 1 - fogAmt * .7; moonGlow.material.opacity = (.9 - mood * .5 - fogAmt * .6) * (1 - dawn * .6);
+      cloudMat.uniforms.uMoon.value.copy(MOON_DIR);
+      cloudMat.uniforms.uOff.value.x += dt * .006 * (.4 + gust.value);                 // clouds drift with the wind
+      cloudMat.uniforms.uOff.value.y -= dt * .002 * (.4 + gust.value);
+      cloudMat.uniforms.uCover.value = lerp(.56, .38, Math.max(mood, fogAmt));           // demons bring heavier cloud
+      water.material.uniforms.sunDirection.value.copy(MOON_DIR);
+      // shooting stars
+      if (meteorT < 0 && (nextMeteor -= dt) < 0 && mood < .5) {
+        meteorT = 0; nextMeteor = 14 + Math.random() * 30;
+        const az = Math.random() * Math.PI * 2, el = .5 + Math.random() * .5;
+        mA.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).multiplyScalar(450);
+        mB.set(Math.random() - .5, -.35 - Math.random() * .3, Math.random() - .5).normalize().multiplyScalar(140);
+      }
+      if (meteorT >= 0) {
+        meteorT += dt / .7; meteor.visible = meteorT < 1;
+        const head = v3.copy(mA).addScaledVector(mB, meteorT), arr = meteorGeo.attributes.position.array;
+        arr.set([head.x, head.y, head.z, head.x - mB.x * .25, head.y - mB.y * .25, head.z - mB.z * .25]); meteorGeo.attributes.position.needsUpdate = true;
+        meteor.material.opacity = Math.sin(Math.PI * Math.min(1, meteorT));
+        if (meteorT >= 1) meteorT = -1;
+      }
 
       // moonlight shadows follow the player
       moon.target.position.set(player.x, player.y, player.z);
@@ -597,13 +756,18 @@ window.GAME = window.GAME || {};
 
       // rain
       if (rainMat.opacity > .01) {
-        for (let i = 0; i < DROPS; i++) { const o = i * 6; rainPos[o + 1] -= 20 * dt; rainPos[o + 4] -= 20 * dt; if (rainPos[o + 1] < -2) resetDrop(i, true); }
+        const drift = gust.value * 4 * dt;   // rain slants with the wind
+        for (let i = 0; i < DROPS; i++) { const o = i * 6; rainPos[o + 1] -= 20 * dt; rainPos[o + 4] -= 20 * dt; rainPos[o] += drift; rainPos[o + 3] += drift; if (rainPos[o + 1] < -2) resetDrop(i, true); }
         rainGeo.attributes.position.needsUpdate = true;
       }
       rain.position.set(camera.position.x, camera.position.y - 6, camera.position.z);
 
       // mist drifts
-      for (const s of mists) { s.position.x += s.userData.v * dt; if (s.position.x > 160) s.position.x = -160; if (s.position.x < -160) s.position.x = 160; s.material.opacity = .1 + mood * .08 + fogAmt * .15; }
+      for (const s of mists) {   // mist rolls along with the wind
+        s.position.x += (s.userData.v * .3 + .6 + gust.value * 1.4) * dt;
+        if (s.position.x > player.x + 160) s.position.x -= 320;
+        s.material.opacity = .1 + mood * .08 + fogAmt * .15;
+      }
 
       // fireflies around the reader
       burst = Math.max(0, burst - dt * .35);
@@ -656,7 +820,9 @@ window.GAME = window.GAME || {};
         u.light.intensity += ((u.lit ? 3 * LI : 0) - u.light.intensity) * .08;
       });
 
-      water.material.uniforms.time.value += dt * .5;
+      water.material.uniforms.time.value += dt * (.45 + gust.value * .35);
+      for (const f of flows) { f.tex.offset.x += dt * f.speed; f.mat.opacity = f.op * (1 - fogAmt * .5); }   // the river flows
+      grass.userData.follow(player.x, player.z);
       composer.render();
       requestAnimationFrame(frame);
     }
@@ -672,6 +838,9 @@ window.GAME = window.GAME || {};
         onArrive = cb; control = true; camMode = 'follow';
       },
       joystick: (x, y) => { joy.x = x; joy.y = y; },
+      // the night: 0 = dusk, 1 = sunrise (for a 'home before sunrise' timer)
+      getNight: () => night,
+      setNight: p => { night = clamp(p, 0, 1); },
       // for testing: jump the Reader somewhere, facing a direction (radians; Math.PI = toward the tower)
       teleport: (x, z, heading = Math.PI) => { Object.assign(player, { x, z, heading }); player.y = groundH(x, z); camYaw = heading; camPos.set(x - Math.sin(heading) * 5, player.y + 3, z - Math.cos(heading) * 5); },
       view: mode => { camMode = mode; },
@@ -690,7 +859,7 @@ window.GAME = window.GAME || {};
         for (const id in demons) { scene.remove(demons[id]); delete demons[id]; }
         fogT = 0; shaking = false; moodT = 0; walkTarget = null; onArrive = null; control = false;
         Object.assign(player, { x: L.start.x, z: L.start.z, heading: Math.PI, speed: 0 }); player.y = groundH(player.x, player.z);
-        camYaw = Math.PI; camMode = 'follow';
+        camYaw = Math.PI; camMode = 'follow'; night = .06;
       }
     };
   }
