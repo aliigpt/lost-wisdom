@@ -122,7 +122,7 @@ window.GAME = window.GAME || {};
     let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
     // ----- Moods: calm night vs. demon night (plus grey for the Fog) -----
-    const WARM = { top: C('#04060d'), bottom: C('#1a2438'), fog: C('#141c2c'), hSky: C('#7d8fb8'), hGround: C('#13120e'), hemi: .22, moon: 1.8, density: .026 };
+    const WARM = { top: C('#04060d'), bottom: C('#1a2438'), fog: C('#141c2c'), hSky: C('#8394bd'), hGround: C('#16150f'), hemi: .3, moon: 1.8, density: .026 };
     const COLD = { top: C('#020306'), bottom: C('#141a24'), fog: C('#10141b'), hSky: C('#62718f'), hGround: C('#0a0b0e'), hemi: .12, moon: .35, density: .045 };
     const GREY = C('#6b7079');
 
@@ -251,8 +251,9 @@ window.GAME = window.GAME || {};
     // ----- Light -----
     const hemi = new T.HemisphereLight(0xffffff, 0x222222, .5); scene.add(hemi);
     const moon = new T.DirectionalLight(0xb8c6ff, 1);
-    moon.castShadow = true; moon.shadow.mapSize.set(2048, 2048); moon.shadow.bias = -.0004; moon.shadow.normalBias = .04;
-    Object.assign(moon.shadow.camera, { left: -32, right: 32, top: 32, bottom: -32, near: 1, far: 140 });
+    const SH = renderer.capabilities.maxTextureSize >= 8192 ? 4096 : 2048;   // big shadow map where the GPU allows it
+    moon.castShadow = true; moon.shadow.mapSize.set(SH, SH); moon.shadow.bias = -.0003; moon.shadow.normalBias = .06;
+    Object.assign(moon.shadow.camera, { left: -75, right: 75, top: 75, bottom: -75, near: 1, far: 320 });
     scene.add(moon, moon.target);
 
     // ----- Materials and helpers -----
@@ -380,6 +381,13 @@ window.GAME = window.GAME || {};
       root.position.set(-c.x, -box.min.y, -c.z);
       return root;
     }
+    // Characters wear cloth and wool: no metal, no gloss (the generated materials sometimes
+    // mark robes as shiny, which showed up as bright streaks)
+    function matte(root) {
+      root.traverse(o => { if (!o.isMesh) return;
+        [].concat(o.material).forEach(m => { m.metalness = 0; m.metalnessMap = null; m.roughness = .95; m.roughnessMap = null; m.envMapIntensity = .35; m.needsUpdate = true; }); });
+      return root;
+    }
     function loadInto(url, group, size, onLoad) {
       loader.load(url, gltf => {
         const root = fit(gltf.scene, size);
@@ -397,7 +405,7 @@ window.GAME = window.GAME || {};
     loadInto('models/cottage.glb', cottage, { height: 6 });
     loadInto('models/clock-tower.glb', tower, { height: 30 });
     loadInto('models/bridge.glb', bridge, { length: RW + 6 }, (g, root) => { root.position.y += L.bridgeY + 1.1 - new T.Box3().setFromObject(root).max.y; });
-    loadInto('models/hooded-figure.glb', hooded, { height: 1.95 }, (g, r) => animate(g, r));
+    loadInto('models/hooded-figure.glb', hooded, { height: 1.95 }, (g, r) => { matte(r); animate(g, r); });
 
     // ----- The forest: instanced trees and rocks in chunks (so off-screen chunks are skipped) -----
     const forest = new T.Group(); scene.add(forest);
@@ -459,8 +467,7 @@ window.GAME = window.GAME || {};
             }
           });
           if (part.customDepthMaterial) im.customDepthMaterial = part.customDepthMaterial;
-          // leaves cast shadows on the ground but don't shadow each other (that made blotchy crowns)
-          im.castShadow = kind !== 'rock' && kind !== 'fern'; im.receiveShadow = !part.material.userData.isFoliage; im.computeBoundingSphere();
+          im.castShadow = kind !== 'fern'; im.receiveShadow = true; im.computeBoundingSphere();
           forest.add(im); chunks.push({ kind, mesh: im, x: (cx + .5) * CH, z: (cz + .5) * CH });
         }
       }
@@ -481,8 +488,13 @@ window.GAME = window.GAME || {};
       }
     });
     plant('fern', buildFern(fmat));
-    plant('rock', standIn('rock'));
-    loader.load('models/rocks.glb', g => plant('rock', fit(g.scene, { height: .9 })), undefined, () => console.info('No model at models/rocks.glb; using simple rocks.'));
+    // three rock shapes mixed through the forest (falls back to the older rocks.glb, then simple shapes)
+    ['rock-boulder', 'rock-slab', 'rock-spire'].forEach((file, v, all) => {
+      const list = items.rock.filter((_, i) => i % all.length === v);
+      plant(`rock${v}`, standIn('rock'), list);
+      loader.load(`models/${file}.glb`, g => plant(`rock${v}`, fit(g.scene, { height: .9 }), list), undefined,
+        () => loader.load('models/rocks.glb', g2 => plant(`rock${v}`, fit(g2.scene, { height: .9 }), list), undefined, () => console.info('No rock models; using simple rocks.')));
+    });
 
     // Grass that follows the Reader: needs the ground height (R) and where grass may grow (G) as a texture
     const HN = 261, hdata = new Uint16Array(HN * HN * 4);
@@ -507,18 +519,25 @@ window.GAME = window.GAME || {};
         const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, '#bbb'); g.addColorStop(1, '#000'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new T.CanvasTexture(c); })() }));
     contact.rotation.x = -Math.PI / 2; contact.position.y = .03; contact.renderOrder = 1; reader.add(contact);   // soft shadow at the feet
     let readerModel = null, readerAnim = null, readerKind = null;
+    // Both Readers start loading right away (on the title screen), so the chosen one is ready instantly
+    const readerFiles = {};
+    ['boy', 'girl'].forEach(k => loader.load(`models/reader-${k}.glb`,
+      gltf => { readerFiles[k] = gltf; if (readerKind === k) showReader(k); },
+      undefined, () => { readerFiles[k] = 'missing'; if (readerKind === k) showReader(k); }));
+    function showReader(kind) {
+      const gltf = readerFiles[kind];
+      if (!gltf) return;   // still loading; shown as soon as it arrives
+      if (readerModel) { reader.remove(readerModel); const i = mixers.indexOf(readerAnim && readerAnim.mixer); if (i >= 0) mixers.splice(i, 1); readerModel = null; }
+      if (gltf === 'missing') { readerShapes.forEach(o => { o.visible = true; }); console.info(`No model at models/reader-${kind}.glb; using a simple shape.`); return; }
+      readerModel = matte(fit(gltf.scene, { height: 1.45 }));
+      readerShapes.forEach(o => { o.visible = false; });
+      reader.add(readerModel);
+      readerAnim = animate(gltf, readerModel);
+      if (readerAnim) readerAnim.action.timeScale = 0;
+    }
     function setReader(kind) {
       if (kind === readerKind) return;
-      readerKind = kind;
-      loader.load(`models/reader-${kind}.glb`, gltf => {
-        if (readerKind !== kind) return;
-        if (readerModel) { reader.remove(readerModel); const i = mixers.indexOf(readerAnim && readerAnim.mixer); if (i >= 0) mixers.splice(i, 1); }
-        readerModel = fit(gltf.scene, { height: 1.45 });
-        readerShapes.forEach(o => { o.visible = false; });
-        reader.add(readerModel);
-        readerAnim = animate(gltf, readerModel);
-        if (readerAnim) readerAnim.action.timeScale = 0;
-      }, undefined, () => { readerShapes.forEach(o => { o.visible = true; }); console.info(`No model at models/reader-${kind}.glb; using a simple shape.`); });
+      readerKind = kind; showReader(kind);
     }
 
     const player = { x: L.start.x, z: L.start.z, y: 0, heading: Math.PI, speed: 0 };
@@ -586,7 +605,7 @@ window.GAME = window.GAME || {};
     function makeDemon() {
       const g = new T.Group(); g.userData = { scale: 0, scaleT: 0, mode: 'attack', phase: rnd() * 6 };
       if (demonGltf) {
-        const model = fit(SkeletonUtils.clone(demonGltf.scene), { height: 1.25 }); g.add(model);
+        const model = matte(fit(SkeletonUtils.clone(demonGltf.scene), { height: 1.25 })); g.add(model);
         if (demonGltf.animations.length) { const m = new T.AnimationMixer(model); mixers.push(m); m.clipAction(demonGltf.animations[0]).play(); }
       } else {
         add(new T.ConeGeometry(.45, 1.3, 12), mat.dark, 0, .65, 0, g);
@@ -784,8 +803,9 @@ window.GAME = window.GAME || {};
       }
 
       // moonlight shadows follow the player
-      moon.target.position.set(player.x, player.y, player.z);
-      moon.position.copy(moon.target.position).addScaledVector(MOON_DIR, 70);
+      // shadows centered a little ahead of the Reader, where the camera is looking
+      moon.target.position.set(player.x + Math.sin(camYaw) * 30, player.y, player.z + Math.cos(camYaw) * 30);
+      moon.position.copy(moon.target.position).addScaledVector(MOON_DIR, 150);
 
       // only draw forest chunks near the camera
       for (const c of chunks) c.mesh.visible = Math.hypot(c.x - camera.position.x, c.z - camera.position.z) < 150;
@@ -877,6 +897,7 @@ window.GAME = window.GAME || {};
       // the night: 0 = dusk, 1 = sunrise (for a 'home before sunrise' timer)
       getNight: () => night,
       setNight: p => { night = clamp(p, 0, 1); },
+      debug: () => ({ readerLoaded: !!readerModel, readerVisible: readerModel ? readerModel.visible : null, kind: readerKind, demonLoaded: !!demonGltf }),
       // for testing: jump the Reader somewhere, facing a direction (radians; Math.PI = toward the tower)
       teleport: (x, z, heading = Math.PI, pitch = .32) => { camPitch = pitch; Object.assign(player, { x, z, heading }); player.y = groundH(x, z); camYaw = heading; camPos.set(x - Math.sin(heading) * 5, player.y + 3, z - Math.cos(heading) * 5); },
       view: mode => { camMode = mode; },
