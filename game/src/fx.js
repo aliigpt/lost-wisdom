@@ -144,5 +144,6 @@ window.GAME = window.GAME || {};
     }
   };
 
+  fx.gsap = gsap;   // exposed for screenshot tools (they turn off lag smoothing so animations finish on slow renderers)
   GAME.fx = fx;
 })();
