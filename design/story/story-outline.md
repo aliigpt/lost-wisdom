@@ -13,6 +13,10 @@ There are also surprise demons during the transcription itself.
 
 ## World
 
+A weird place with a river running through it. The Reader's house is on one side of the river, the clock tower on the other.
+
+Rule of the world: the Reader transcribes in the clock tower each night, and must cross the river back to the house before sunrise, because a huge creature roams the place in the day, catching anyone it finds.
+
 
 ## Characters
 
@@ -81,11 +85,15 @@ A surprise demon during transcription. Because of the lack of food, everything b
 
 ## Chapters
 
-### Chapter 1 —
+### Chapter 1 — The first night
 
-- Scene:
-- Page:
-- Scene:
+- **Scene 1:** The Reader somehow arrives in this weird place, with a river. The house is on one side of it, the clock tower on the other. Someone tells the Reader that they need to transcribe each night, and that before sunrise they need to cross the river and go back to the house, because a huge creature roams through the place, catching them.
+- **Scenes 2–6:** The first night. The Reader makes their way into the clock tower and is hit by demons.
+  - Scene 2:
+  - Scene 3:
+  - Scene 4:
+  - Scene 5:
+  - Scene 6:
 
 ### Chapter 2 —
 
