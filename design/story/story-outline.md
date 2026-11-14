@@ -38,16 +38,39 @@ Stops the Reader from going into the clock tower. The fog floats in the night sk
 
 ### 2. The Flutter (anxiety)
 
-As the Reader is walking, they suddenly feel like they cannot breathe, and their hands start to shiver. The Reader tries hard to grasp for air. The player gets to choose between different options:
+As the Reader is walking, they suddenly feel like they cannot breathe, and their hands start to shiver. The Reader tries hard to grasp for air. The player chooses what to do:
 
-- **a** — fight it, with thoughts or physically
-- **b** — surrender
-- **c** — 
+- **Choice 1**
+  - **a) Try to breathe** → go to Choice 2
+  - **b) Lie flat** → 5 sec → *"Congrats for surrendering, you have succeeded in fighting the demon."*
+- **Choice 2** (after trying to breathe)
+  - **a) Try to shout for help** → go to Choice 3
+  - **b) Close eyes and count to 10** → 5 sec → *"Congrats for surrendering, you have succeeded in fighting the demon."*
+- **Choice 3** (after shouting for help, someone hears and comes over) *(Claude's suggestion)*
+  - **a) "I'm fine, it's nothing."** → *"Sorry, the demon has gotten you."* → 30 sec paralysis
+  - **b) "I can't breathe. Please stay with me."** → *"Congrats, you have succeeded in fighting the demon!"*
+
+  *Why: hiding it and pretending to be fine feeds anxiety; saying it out loud and letting someone stay with you takes its power away.*
 
 ### 3. The Stern Quill (perfectionism)
 
+When the Reader gets into the clock tower, the quill doesn't allow them to write. They can hold the quill, but every time they write and try to transcribe, nothing shows up.
+
+**What the Reader needs to do (no instructions, they figure it out):** *(Claude's suggestion)*
+Write a **wrong** word on purpose. The correct words vanish the moment they touch the page, but a wrong word stays as a messy ink blot. When the Reader crosses it out, the correct word finally appears, and the quill lets them write normally again.
+
+- *Why: perfectionism says only perfect work deserves to exist. The fix is to let something imperfect onto the page first.*
+- *Quiet hint, not an instruction: a crumpled draft lies on the desk, covered in crossed-out words, and the demon mutters "Only perfect words deserve ink."*
 
 ### 4. The Closing Wall (agoraphobia)
+
+When the Reader is in the house, ready to make their way to the clock tower, the wall suddenly starts closing in, stopping them from crossing the river to the clock tower. The wall only closes on their side of the river.
+
+**What the Reader needs to do (no instructions, they figure it out):** *(Claude's suggestion)*
+Walk toward the wall in **small steps, and stay**. Each step forward makes the heartbeat louder and the wall lean in. If the Reader stands still and waits instead of running back, the heartbeat slowly calms, a lantern on the path lights up, and the wall moves back a little. Step, wait, step, wait, until they reach the bridge. Running back into the house makes the wall close in further.
+
+- *Why: this is how fear of open spaces is really faced: small steps, staying with the fear until it calms, then the next step.*
+- *Quiet hint, not an instruction: unlit lanterns along the path to the bridge, and the heartbeat audibly slowing when the Reader stands still.*
 
 
 ### 5. The Thin Moon (anorexia)
