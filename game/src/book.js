@@ -102,7 +102,11 @@ window.GAME = window.GAME || {};
     whisper('The line glows softly.');
   }
 
-  $('#turn').addEventListener('click', () => { GAME.audio?.play('page-turn', .8); $('#game').hidden = true; onDone && onDone(); });
+  $('#turn').addEventListener('click', () => {
+    if (!onDone) return;   // turn each page only once
+    GAME.audio?.play('page-turn', .8); $('#game').hidden = true;
+    const cb = onDone; onDone = null; cb();
+  });
   $('#glyph-line').addEventListener('click', e => { const s = e.target.closest('.slot'); if (s) select(+s.dataset.i); });
   $('#tray').addEventListener('click', e => { const c = e.target.closest('.chip'); if (c) assign(c.dataset.w, c); });
 

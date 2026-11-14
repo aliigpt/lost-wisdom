@@ -32,11 +32,16 @@ window.GAME = window.GAME || {};
 
   function finish() {
     $('#scene').hidden = true;
-    onDone && onDone();
+    const cb = onDone; onDone = null;   // a scene finishes exactly once, however fast Next is clicked
+    cb && cb();
   }
 
   // first click finishes the line being written; the next one moves on
-  $('#scene-next').addEventListener('click', () => { if (typing && typing.isActive()) { typing.progress(1); return; } i++; show(); });
+  $('#scene-next').addEventListener('click', () => {
+    if (!onDone || $('#scene').hidden) return;   // ignore clicks after the scene has ended
+    if (typing && typing.isActive()) { typing.progress(1); return; }
+    i++; show();
+  });
 
   GAME.scenes = { play };
 })();
