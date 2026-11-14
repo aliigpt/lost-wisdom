@@ -17,13 +17,24 @@ A weird place with a river running through it. The Reader's house is on one side
 
 Rule of the world: the Reader transcribes in the clock tower each night, and must cross the river back to the house before sunrise, because a huge creature roams the place in the day, catching anyone it finds.
 
+**The creature** is not a demon, it's something different. The Reader only hears about it. They see it only if they try to break the rules.
+
+**If the creature catches the Reader** (they're not home by sunrise), they are teleported back to their bed at home to recharge, and the scene restarts.
+
 
 ## Characters
 
 ### The Reader
 
 
-### 
+### The Hooded Figure
+
+A person in a black hood. Tells the Reader the rules in Scene 1.
+
+*(Claude's suggestion)* The figure is the Reader's older self, someone who already finished the book once. That's why they know the rules, and why they never show their face. At the very end, when the Reader finishes the book, the figure lowers the hood and the Reader sees their own face, just older and calmer. Then the Reader goes home to the real world.
+
+- *Why: the ending is "finishing the book = understanding yourself". The person who guided you all along being you shows it without having to say it.*
+- *Small clues along the way: the figure knows things only the Reader would know, and carries the same lantern.*
 
 
 ## The inner demons
@@ -89,16 +100,26 @@ A surprise demon during transcription. Because of the lack of food, everything b
 
 - **Scene 1:** The Reader somehow arrives in this weird place, with a river. The house is on one side of it, the clock tower on the other. Someone tells the Reader that they need to transcribe each night, and that before sunrise they need to cross the river and go back to the house, because a huge creature roams through the place, catching them.
 - **Scenes 2–6:** The first night. The Reader makes their way into the clock tower and is hit by demons.
-  - Scene 2:
-  - Scene 3:
-  - Scene 4:
-  - Scene 5:
-  - Scene 6:
+  - *(Claude's suggestion: the first night stays gentle, with only the Fog and the Flutter, so the player learns one thing at a time.)*
+  - **Scene 2 — Leaving the house.** Night falls. The Reader walks from the house down to the river. No demons yet; the player just learns to move.
+  - **Scene 3 — The Fog.** Halfway to the bridge, the Fog drifts across the night sky. First time dodging. If it hits, the Reader lies paralyzed for a minute.
+  - **Scene 4 — The Flutter.** Crossing the bridge, the Reader can't breathe. The three choices play out.
+  - **Scene 5 — The first page.** Inside the clock tower, the Reader transcribes for the first time. No demon in here tonight, so the player learns the puzzle in peace.
+  - **Scene 6 — Before sunrise.** The sky starts to lighten. Somewhere far off, the creature is heard. The Reader hurries back across the river and makes it to bed.
 
-### Chapter 2 —
+### Chapter 2 — *(Claude's suggestion)*
+
+- The Closing Wall strikes at the house, before the Reader can even leave.
+- In the tower, the Stern Quill won't let them write.
+
+### Chapter 3 — *(Claude's suggestion)*
+
+- The Thin Moon strikes as a surprise during transcription. The Reader has to leave early, and the next day eats to nourish themselves.
+
+### Chapter 4 —
 
 
 ## Ending
 
-The Reader can go back to their real world.
+The Reader finishes the whole book, which means they finally understand themselves. Then they can go back to their real world.
 
