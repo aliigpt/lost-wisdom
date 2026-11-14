@@ -49,7 +49,7 @@ function addWind(m, bend, flutter, leaf) {
       vs = 'attribute float aAO; varying float vAO;\n' + vs.replace('#include <begin_vertex>', '#include <begin_vertex>\n vAO = aAO;');
       sh.uniforms.uMoonView = moonView; sh.uniforms.uMoonCol = moonColor;
       sh.fragmentShader = 'varying float vAO; uniform vec3 uMoonView; uniform vec3 uMoonCol;\n' + bothSidesLit(sh.fragmentShader)
-        .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(0.28, 1.0, vAO);')
+        .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(0.28, 1.0, vAO);\n diffuseColor.a = min(1.0, diffuseColor.a * (1.0 + smoothstep(10.0, 90.0, length(vViewPosition)) * 1.8));   // far away, keep needles and leaves solid (texture detail averages out)')
         .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
           reflectedLight.directDiffuse *= mix(1.0, 0.3, smoothstep(36.0, 50.0, length(vViewPosition)));   // far away: under the canopy
           // light shining through thin leaves when the moon is behind them

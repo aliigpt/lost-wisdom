@@ -625,7 +625,8 @@ window.GAME = window.GAME || {};
 
     const player = { x: L.start.x, z: L.start.z, y: 0, heading: Math.PI, speed: 0 };
     let control = false, camYaw = Math.PI, camPitch = .32, lastLook = -10, camDist = 5.2;
-    const camFollow = { speed: 6 };   // how quickly the camera catches up (GSAP slows it for the intro swoop)
+    const camFollow = { speed: 6 };
+    const shotPos = new T.Vector3(), shotLook = new T.Vector3();   // how quickly the camera catches up (GSAP slows it for the intro swoop)
     const keys = new Set();
     const joy = { x: 0, y: 0 };
     const KEYMAP = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r', ShiftLeft: 'run', ShiftRight: 'run' };
@@ -858,7 +859,8 @@ window.GAME = window.GAME || {};
       }
 
       // camera
-      if (camMode === 'title') {
+      if (camMode === 'shot') { camPos.copy(shotPos); camLook.copy(shotLook); }   // fixed camera for screenshots
+      else if (camMode === 'title') {
         const a = (reduce ? 0 : t * .03) + .6, cx = L.house.x + 6, cz = L.house.z - 2;
         v3.set(cx + Math.sin(a) * 26, groundH(cx, cz) + 14, cz + Math.cos(a) * 26);
         camPos.lerp(v3, .02); camLook.lerp(v3.set(cx - 2, groundH(cx, cz) + 3, cz - 4), .03);
@@ -1003,6 +1005,9 @@ window.GAME = window.GAME || {};
       getNight: () => night,
       setNight: p => { night = clamp(p, 0, 1); },
       debug: () => ({ readerLoaded: !!readerModel, readerVisible: readerModel ? readerModel.visible : null, kind: readerKind, demonLoaded: !!demonGltf }),
+      // for screenshots: put the camera at a fixed spot looking at a point (call with no arguments to go back)
+      shot: (pos, look) => { if (!pos) { camMode = 'follow'; return; } shotPos.set(pos[0], pos[1] ?? groundH(pos[0], pos[2]) + 1.6, pos[2]); shotLook.set(...look); camMode = 'shot'; },
+      groundAt: (x, z) => groundH(x, z),
       // for filming: set the camera angle and distance behind the Reader
       camera: (yaw, pitch = camPitch, dist = camDist) => { camYaw = yaw; camPitch = pitch; camDist = dist; lastLook = clock.elapsedTime; },
       // for testing: jump the Reader somewhere, facing a direction (radians; Math.PI = toward the tower)

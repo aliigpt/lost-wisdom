@@ -446,3 +446,6 @@ body.cold .book { filter: saturate(.55) brightness(.82) drop-shadow(0 24px 40px 
   background: radial-gradient(circle, rgba(14,10,7,.35), rgba(14,10,7,.6)); border: 1.5px solid rgba(201,162,74,.7);
 }
 #stick { position: absolute; left: 35px; top: 35px; width: 50px; height: 50px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, var(--gold-hi), var(--gold-lo)); box-shadow: 0 2px 8px #000; }
+
+/* keyboard focus on framed buttons: a soft glow instead of a hard square */
+.btn:focus-visible, .choice:focus-visible { outline: none; filter: drop-shadow(0 0 12px rgba(241,216,146,.65)) drop-shadow(0 4px 8px rgba(0,0,0,.6)); }
