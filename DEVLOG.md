@@ -25,6 +25,9 @@ A Pinterest moodboard in `design/inspiration/`: inked libraries, surreal illustr
 | v6 | Trees grown from photo textures, wind in every leaf, a flowing river, a moon that crosses the sky |
 | v7 | Night lighting: moon as key light, light through leaves, contact shading, matte cloth, finer rocks |
 | v8 | Sound: wind, forest, river, footsteps, quill and pages, demon battles, an ElevenLabs score |
+| v9 | Forest floor under the trees, a soft dirt path, logs, stumps and mushrooms, a real brass lantern in hand, idle and run animations |
+
+A 30-second progress reel is in `design/reel/`.
 
 ## Tools
 - **Three.js** for the 3D world, **Vite** to run it
