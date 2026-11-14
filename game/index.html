@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lost Wisdom</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Nunito:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<canvas id="world" aria-hidden="true"></canvas>
+
+<main id="app">
+  <!-- TITLE (text comes from content/script.js) -->
+  <section id="title-screen" class="screen">
+    <p class="eyebrow" id="title-eyebrow"></p>
+    <h1 id="title-heading"></h1>
+    <p class="lede" id="title-tagline"></p>
+    <div class="stage tall"></div>
+    <button id="begin" class="btn">Begin</button>
+    <p class="credits">Tap a symbol, then tap the word you think it means. Pictures in the margin are clues. Wrong guesses cost nothing.</p>
+  </section>
+
+  <!-- SCENE: dialogue and narration between pages -->
+  <section id="scene" class="screen" hidden>
+    <div class="stage tall"></div>
+    <div class="dialogue">
+      <p class="who" id="scene-who"></p>
+      <p class="say" id="scene-text"></p>
+      <button id="scene-next" class="btn">Next</button>
+    </div>
+  </section>
+
+  <!-- PAGE: the transcription puzzle -->
+  <section id="game" class="screen" hidden>
+    <div class="hud">
+      <span class="tag">The Book</span>
+      <div class="pips" id="pips" aria-label="Progress"></div>
+    </div>
+    <p id="whisper" aria-live="polite"></p>
+    <div class="stage"></div>
+    <div class="book" id="book">
+      <div class="page left">
+        <p class="label">Margin</p>
+        <div id="illus"></div>
+        <p class="label">In English</p>
+        <p id="translation"></p>
+        <button id="turn" class="btn" hidden>Turn the page</button>
+        <span class="folio" id="folio-l"></span>
+      </div>
+      <div class="page right">
+        <p class="label">Old Tongue</p>
+        <div id="glyph-line"></div>
+        <p class="hint">Symbols often look a little like what they mean.</p>
+        <span class="folio" id="folio-r"></span>
+      </div>
+    </div>
+    <div id="tray" aria-label="Word slips"></div>
+    <div class="lexicon">
+      <p class="label">Your lexicon</p>
+      <div id="lexicon-list"></div>
+    </div>
+  </section>
+
+  <!-- ENDING (text comes from content/script.js) -->
+  <section id="ending" class="screen" hidden>
+    <h2 id="ending-title"></h2>
+    <div id="ending-lines"></div>
+    <div class="scripture" id="scripture"></div>
+    <div class="companions" id="companions"></div>
+    <button id="again" class="btn">Play again</button>
+  </section>
+</main>
+
+<!-- Demon encounter -->
+<div id="veil" hidden></div>
+<div id="demon-card" class="demon-card" hidden role="dialog" aria-modal="true" aria-labelledby="demon-name">
+  <div id="demon-blob"></div>
+  <p class="real" id="demon-real"></p>
+  <h2 id="demon-name"></h2>
+  <p class="line" id="demon-line"></p>
+  <p class="task" id="demon-task"></p>
+  <button id="demon-go" class="btn">I'll try</button>
+</div>
+
+<!-- Flutter: breathing -->
+<div id="breath" hidden>
+  <button id="breath-btn" aria-label="Hold to breathe in, release to breathe out"><span id="breath-core"></span></button>
+  <p id="breath-label"></p>
+  <div class="breath-dots"><span></span><span></span><span></span></div>
+</div>
+
+<!-- Libraries -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
+
+<!-- Your content (edit these) -->
+<script src="content/glyphs.js"></script>
+<script src="content/pictures.js"></script>
+<script src="content/demons.js"></script>
+<script src="content/script.js"></script>
+
+<!-- Game code -->
+<script src="src/ui.js"></script>
+<script src="src/world.js"></script>
+<script src="src/demons.js"></script>
+<script src="src/book.js"></script>
+<script src="src/scenes.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
