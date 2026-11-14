@@ -9,6 +9,7 @@ window.GAME = window.GAME || {};
 
   GAME.world = GAME.createWorld($('#world'));
   GAME.audio.music('music-title');   // starts with the first click (browsers require one)
+  GAME.fx?.titleIn();
   addEventListener('click', e => { if (e.target.closest('button')) GAME.audio.play('ui-click', .5); });
   GAME.setWeather = cold => { document.body.classList.toggle('cold', cold); GAME.world.setMood(cold); };
 
@@ -34,7 +35,8 @@ window.GAME = window.GAME || {};
   // ----- Walking: the player moves the Reader until they reach the place -----
   const touch = matchMedia('(pointer: coarse)').matches;
   function walk(item, done) {
-    $('#objective-text').textContent = GAME.ui.say(item.objective || `Walk to the ${item.to}`);
+    const goal = GAME.ui.say(item.objective || `Walk to the ${item.to}`);
+    if (GAME.fx) GAME.fx.objective($('#objective-text'), goal); else $('#objective-text').textContent = goal;
     $('#walk-hud').hidden = false;
     $('#joystick').hidden = !touch;
     GAME.world.walkTo(item.to, () => { $('#walk-hud').hidden = true; $('#joystick').hidden = true; GAME.world.joystick(0, 0); done(); });
@@ -67,6 +69,7 @@ window.GAME = window.GAME || {};
     script = GAME.script || [];
     pages = script.filter(s => s.type === 'page');
     step = 0;
+    GAME.fx?.cameraIntro();   // the camera swoops down to the Reader
     run();
   }
 
@@ -74,6 +77,7 @@ window.GAME = window.GAME || {};
   function showEnding() {
     const end = GAME.ending || {};
     $('#game').hidden = true; $('#scene').hidden = true; $('#ending').hidden = false;
+    requestAnimationFrame(() => GAME.fx?.endingIn());
     $('#ending-title').textContent = GAME.ui.say(end.title || '');
     $('#ending-lines').innerHTML = '';
     (end.lines || []).forEach(t => { const p = document.createElement('p'); p.className = 'lede'; p.textContent = GAME.ui.say(t); $('#ending-lines').appendChild(p); });
@@ -97,7 +101,7 @@ window.GAME = window.GAME || {};
 
   // ----- Choose boy or girl, then start -----
   GAME.player = { reader: null };
-  $('#begin').addEventListener('click', () => { $('#title-screen').hidden = true; $('#choose').hidden = false; });
+  $('#begin').addEventListener('click', () => { $('#title-screen').hidden = true; $('#choose').hidden = false; GAME.fx?.chooseIn(); });
   document.querySelectorAll('.choice').forEach(btn => btn.addEventListener('click', () => {
     GAME.player.reader = btn.dataset.reader;
     GAME.world.setReader(GAME.player.reader);

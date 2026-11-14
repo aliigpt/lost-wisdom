@@ -625,6 +625,7 @@ window.GAME = window.GAME || {};
 
     const player = { x: L.start.x, z: L.start.z, y: 0, heading: Math.PI, speed: 0 };
     let control = false, camYaw = Math.PI, camPitch = .32, lastLook = -10, camDist = 5.2;
+    const camFollow = { speed: 6 };   // how quickly the camera catches up (GSAP slows it for the intro swoop)
     const keys = new Set();
     const joy = { x: 0, y: 0 };
     const KEYMAP = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r', ShiftLeft: 'run', ShiftRight: 'run' };
@@ -747,7 +748,7 @@ window.GAME = window.GAME || {};
       const hits = ray.intersectObjects(lanterns.filter(l => !l.userData.lit).map(l => l.userData.hit));
       if (!hits.length) return;
       const l = lanterns.find(l => l.userData.hit === hits[0].object);
-      l.userData.lit = true; wallsLit++; GAME.audio?.play('lantern', .9);
+      l.userData.lit = true; wallsLit++; GAME.audio?.play('lantern', .9); GAME.fx?.glimmer();
       ringRT = 6 + wallsLit * 5; ringHT = Math.max(0, 8 - wallsLit * 2.2);
       if (wallsLit === 3) { wallsActive = false; ringRT = 30; ringHT = 0; setTimeout(() => lanterns.forEach(l => { l.visible = false; }), 1600); }
       onLantern && onLantern(wallsLit);
@@ -866,8 +867,8 @@ window.GAME = window.GAME || {};
         const dist = camDist, sy = Math.sin(camYaw), cy = Math.cos(camYaw);
         v3.set(player.x - sy * dist * Math.cos(camPitch), player.y + 1.4 + Math.sin(camPitch) * dist, player.z - cy * dist * Math.cos(camPitch));
         v3.y = Math.max(v3.y, groundH(v3.x, v3.z) + .7);
-        camPos.lerp(v3, Math.min(1, dt * 6));
-        camLook.lerp(v3.set(player.x + sy * 1.5, player.y + 1.25, player.z + cy * 1.5), Math.min(1, dt * 8));
+        camPos.lerp(v3, Math.min(1, dt * camFollow.speed));
+        camLook.lerp(v3.set(player.x + sy * 1.5, player.y + 1.25, player.z + cy * 1.5), Math.min(1, dt * camFollow.speed * 1.35));
       }
       camera.position.copy(camPos);
       if (shaking && !reduce) camera.position.add(v3.set((Math.random() - .5) * .06, (Math.random() - .5) * .06, 0));
@@ -990,6 +991,7 @@ window.GAME = window.GAME || {};
     return {
       ok: true,
       setReader,
+      camFollow,
       setControl: on => { control = on; if (!on) keys.clear(); if (on) camMode = 'follow'; },
       walkTo: (target, cb) => {
         walkTarget = typeof target === 'string' ? TARGETS[target] : target;

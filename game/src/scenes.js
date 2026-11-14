@@ -7,12 +7,13 @@ window.GAME = window.GAME || {};
 
 (() => {
   const { $ } = GAME.ui;
-  let lines = [], i = 0, onDone = null;
+  let lines = [], i = 0, onDone = null, typing = null;
 
   function play(scene, done) {
     if (scene.weather) GAME.setWeather(scene.weather === 'rain');
     lines = scene.lines || []; i = 0; onDone = done;
     $('#scene').hidden = false;
+    GAME.fx?.dialogueIn();
     show();
   }
 
@@ -22,7 +23,9 @@ window.GAME = window.GAME || {};
     const who = $('#scene-who');
     who.textContent = GAME.ui.say(line.who || '');
     who.hidden = !line.who;
-    $('#scene-text').textContent = GAME.ui.say(line.text || '');
+    const text = GAME.ui.say(line.text || '');
+    if (GAME.fx) typing = GAME.fx.type($('#scene-text'), text);   // writes itself out
+    else $('#scene-text').textContent = text;
     $('#scene-next').textContent = i === lines.length - 1 ? 'Continue' : 'Next';
     $('#scene-next').focus();
   }
@@ -32,7 +35,8 @@ window.GAME = window.GAME || {};
     onDone && onDone();
   }
 
-  $('#scene-next').addEventListener('click', () => { i++; show(); });
+  // first click finishes the line being written; the next one moves on
+  $('#scene-next').addEventListener('click', () => { if (typing && typing.isActive()) { typing.progress(1); return; } i++; show(); });
 
   GAME.scenes = { play };
 })();

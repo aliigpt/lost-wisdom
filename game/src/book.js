@@ -29,6 +29,7 @@ window.GAME = window.GAME || {};
     $('#folio-r').textContent = `folio ${folio(no)}, verso`;
     renderGlyphs(); renderTray(); renderPips(); renderLexicon();
     whisper(p.intro || '');
+    GAME.fx?.bookOpen();
     GAME.audio?.play('page-turn', .8);
     if (p.demon) setTimeout(() => GAME.demons.start(p.demon), 1400);
     if (firstOpen() < 0) completePage(); // every word already known
@@ -78,12 +79,14 @@ window.GAME = window.GAME || {};
       chipEl.classList.add('used');
       GAME.audio?.play('quill', .9); setTimeout(() => GAME.audio?.play('shimmer', .45), 350);
       selected = firstOpen();
-      renderGlyphs(target); renderLexicon();
+      renderGlyphs(GAME.fx ? null : target); renderLexicon();
+      GAME.fx?.wordFly(chipEl, document.querySelector(`.slot[data-i="${i}"]`));
       if (!GAME.demons.onCorrectWord()) whisper(`"${target}". It goes into your lexicon.`);
       if (firstOpen() < 0) completePage();
     } else {
       const slot = document.querySelector(`.slot[data-i="${i}"]`);
-      [slot, chipEl].forEach(el => { el.classList.remove('wrong'); void el.offsetWidth; el.classList.add('wrong'); });
+      if (GAME.fx) GAME.fx.wrong(slot, chipEl);
+      else [slot, chipEl].forEach(el => { el.classList.remove('wrong'); void el.offsetWidth; el.classList.add('wrong'); });
       GAME.audio?.play('paper-knock', .8);
       whisper(WRONG[wrongN++ % WRONG.length]);
     }
@@ -93,6 +96,7 @@ window.GAME = window.GAME || {};
     transcribed.push(GAME.ui.say(page.english || page.words.join(' ')));
     $('#glyph-line').classList.add('complete');
     $('#translation').classList.add('show');
+    GAME.fx?.pageComplete();
     GAME.world.celebrate();
     const t = $('#turn'); t.textContent = isLast ? 'Close the Book' : 'Turn the page'; t.hidden = false;
     whisper('The line glows softly.');

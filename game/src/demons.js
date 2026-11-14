@@ -25,6 +25,7 @@ window.GAME = window.GAME || {};
     $('#demon-line').textContent = d.line;
     $('#demon-task').textContent = d.task;
     $('#veil').hidden = false; $('#demon-card').hidden = false;
+    GAME.fx?.demonIn();
     $('#demon-go').focus();
   }
 
@@ -49,6 +50,7 @@ window.GAME = window.GAME || {};
     GAME.audio?.play('demon-defeated', 1); GAME.audio?.loop('battle-loop', 0, 3); GAME.audio?.loop('heartbeat', 0, 1.5); GAME.audio?.duckMusic(false);
     GAME.setWeather(false);
     whisper(text(id).done);
+    GAME.fx?.victory();
   }
 
   // ----- Flutter: hold to breathe in, release to breathe out, x3 -----

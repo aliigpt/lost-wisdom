@@ -11,6 +11,7 @@ import '../content/script.js';
 // Game code
 import './ui.js';
 import './audio.js';
+import './fx.js';
 import './world.js';
 import './demons.js';
 import './book.js';
