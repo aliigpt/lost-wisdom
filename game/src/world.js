@@ -19,7 +19,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { Water } from 'three/addons/objects/Water.js';
-import { foliageMaterials, buildOak, buildPine, buildFern, buildGrass, wind, gust } from './foliage.js';
+import { foliageMaterials, buildOak, buildPine, buildFern, buildGrass, wind, gust, moonView, moonColor } from './foliage.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
 window.GAME = window.GAME || {};
 
@@ -112,7 +113,7 @@ window.GAME = window.GAME || {};
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = T.PCFSoftShadowMap;
     renderer.toneMapping = T.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
+    renderer.toneMappingExposure = 1.05;
     const fmat = foliageMaterials(renderer);
 
     const scene = new T.Scene();
@@ -121,8 +122,8 @@ window.GAME = window.GAME || {};
     let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
     // ----- Moods: calm night vs. demon night (plus grey for the Fog) -----
-    const WARM = { top: C('#04060d'), bottom: C('#1a2438'), fog: C('#141c2c'), hSky: C('#8fa0c4'), hGround: C('#15140f'), hemi: .5, moon: .75, density: .028 };
-    const COLD = { top: C('#020306'), bottom: C('#141a24'), fog: C('#10141b'), hSky: C('#6f7f9c'), hGround: C('#0d0f13'), hemi: .3, moon: .15, density: .045 };
+    const WARM = { top: C('#04060d'), bottom: C('#1a2438'), fog: C('#141c2c'), hSky: C('#7d8fb8'), hGround: C('#0f0e0b'), hemi: .16, moon: 1.7, density: .026 };
+    const COLD = { top: C('#020306'), bottom: C('#141a24'), fog: C('#10141b'), hSky: C('#62718f'), hGround: C('#0a0b0e'), hemi: .12, moon: .35, density: .045 };
     const GREY = C('#6b7079');
 
     // ----- Sky (all of it follows the camera, so it always looks infinitely far) -----
@@ -234,6 +235,19 @@ window.GAME = window.GAME || {};
     moonDirAt(night);
     const DAWN = { bottom: C('#5a3f4c'), top: C('#1a2440'), fog: C('#3a3346') };
 
+    // ----- Sky reflections: a blurred copy of the night sky for shiny/rough surfaces to reflect -----
+    {
+      const envScene = new T.Scene();
+      envScene.add(new T.Mesh(new T.SphereGeometry(10, 32, 16), new T.ShaderMaterial({ side: T.BackSide,
+        vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: 'varying vec3 vP; void main(){ float h = clamp(vP.y * 1.2 + .2, 0., 1.); gl_FragColor = vec4(mix(vec3(.012, .016, .03), vec3(.05, .07, .13), h), 1.); }' })));
+      const moonBall = new T.Mesh(new T.SphereGeometry(.9, 16, 12), new T.MeshBasicMaterial({ color: new T.Color(1.6, 1.7, 2.0) }));
+      moonBall.position.copy(MOON_DIR).multiplyScalar(8); envScene.add(moonBall);
+      const pm = new T.PMREMGenerator(renderer);
+      scene.environment = pm.fromScene(envScene, .04).texture; scene.environmentIntensity = .9;
+      pm.dispose();
+    }
+
     // ----- Light -----
     const hemi = new T.HemisphereLight(0xffffff, 0x222222, .5); scene.add(hemi);
     const moon = new T.DirectionalLight(0xb8c6ff, 1);
@@ -319,7 +333,7 @@ window.GAME = window.GAME || {};
       const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; return t; })();
     const flows = [[16, 1.3, .055, .12], [9, .8, .03, .08]].map(([rep, repY, speed, op]) => {
       const tex = flowTex.clone(); tex.needsUpdate = true; tex.repeat.set(L.size / rep, repY);
-      const m = new T.Mesh(new T.PlaneGeometry(L.size, RW + 3), new T.MeshBasicMaterial({ map: tex, transparent: true, opacity: op, depthWrite: false, blending: T.AdditiveBlending, color: '#8fa6cc' }));
+      const m = new T.Mesh(new T.PlaneGeometry(L.size, RW + 3), new T.MeshBasicMaterial({ map: tex, transparent: true, opacity: op, depthWrite: false, blending: T.AdditiveBlending, color: '#8fa6cc', fog: false }));
       m.rotation.x = -Math.PI / 2; m.position.set(0, WATER_Y + .03, RZ); scene.add(m);
       return { tex, speed, mat: m.material, op };
     });
@@ -485,8 +499,13 @@ window.GAME = window.GAME || {};
     // ----- The Reader (boy or girl) and the player controller -----
     const reader = new T.Group(); scene.add(reader);
     const readerShapes = [add(new T.ConeGeometry(.42, 1.1, 12), mat.cloak, 0, .55, 0, reader), add(new T.SphereGeometry(.17, 14, 10), mat.skin, 0, 1.25, 0, reader)];
+    readerShapes.forEach(o => { o.visible = false; });   // only shown if the model can't load
     const lantern = add(new T.SphereGeometry(.07, 10, 8), mat.glow, .32, .72, .2, reader);
-    const lanternLight = new T.PointLight('#ffb862', 2.2 * LI, 11, 1.7); lanternLight.position.set(.32, .85, .3); lanternLight.castShadow = false; reader.add(lanternLight);
+    const lanternLight = new T.PointLight('#ffa65a', 1.4 * LI, 14, 2); lanternLight.position.set(.32, .85, .3); lanternLight.castShadow = false; reader.add(lanternLight);
+    const contact = new T.Mesh(new T.PlaneGeometry(1.6, 1.6), new T.MeshBasicMaterial({ transparent: true, depthWrite: false, color: '#000',
+      alphaMap: (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d');
+        const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, '#bbb'); g.addColorStop(1, '#000'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new T.CanvasTexture(c); })() }));
+    contact.rotation.x = -Math.PI / 2; contact.position.y = .03; contact.renderOrder = 1; reader.add(contact);   // soft shadow at the feet
     let readerModel = null, readerAnim = null, readerKind = null;
     function setReader(kind) {
       if (kind === readerKind) return;
@@ -499,7 +518,7 @@ window.GAME = window.GAME || {};
         reader.add(readerModel);
         readerAnim = animate(gltf, readerModel);
         if (readerAnim) readerAnim.action.timeScale = 0;
-      }, undefined, () => console.info(`No model at models/reader-${kind}.glb; using a simple shape.`));
+      }, undefined, () => { readerShapes.forEach(o => { o.visible = true; }); console.info(`No model at models/reader-${kind}.glb; using a simple shape.`); });
     }
 
     const player = { x: L.start.x, z: L.start.z, y: 0, heading: Math.PI, speed: 0 };
@@ -637,6 +656,21 @@ window.GAME = window.GAME || {};
     composer.addPass(new RenderPass(scene, camera));
     composer.addPass(new UnrealBloomPass(new T.Vector2(256, 256), .55, .45, .88));
     composer.addPass(new OutputPass());
+    // cinematic grade: a touch less saturation, cool shadows, warm highlights, gentle contrast
+    composer.addPass(new ShaderPass({
+      uniforms: { tDiffuse: { value: null } },
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
+        void main(){
+          vec3 c = texture2D(tDiffuse, vUv).rgb;
+          float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+          c = mix(vec3(l), c, 0.88);
+          c += vec3(-0.012, 0.004, 0.03) * (1.0 - smoothstep(0.0, 0.35, l));   // cool shadows
+          c += vec3(0.03, 0.012, -0.02) * smoothstep(0.45, 1.0, l);            // warm highlights
+          c = clamp((c - 0.5) * 1.07 + 0.5, 0.0, 1.0);
+          gl_FragColor = vec4(c, 1.0);
+        }`
+    }));
     function resize() {
       renderer.setSize(innerWidth, innerHeight, false); composer.setSize(innerWidth, innerHeight);
       camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
@@ -673,7 +707,7 @@ window.GAME = window.GAME || {};
       backdropMat.color.setScalar(1 - Math.max(mood, fogAmt) * .6);
       starMat.uniforms.uOpacity.value = (1 - Math.max(mood, fogAmt) * .85) * (1 - dawn);
       starMat.uniforms.uTime.value = t;
-      lanternLight.intensity = (2.2 + mood * 1.5) * LI * (shaking ? .6 + Math.random() * .6 : 1);
+      lanternLight.intensity = (1.4 + mood * .9) * LI * (shaking ? .6 + Math.random() * .6 : (.96 + Math.sin(t * 9) * .02 + Math.sin(t * 23) * .02));
       rainMat.opacity = mood * .45;
 
       // player movement
@@ -728,6 +762,8 @@ window.GAME = window.GAME || {};
       moonDisc.position.copy(MOON_DIR).multiplyScalar(500); moonGlow.position.copy(MOON_DIR).multiplyScalar(505);
       moonDisc.material.opacity = 1 - fogAmt * .7; moonGlow.material.opacity = (.9 - mood * .5 - fogAmt * .6) * (1 - dawn * .6);
       cloudMat.uniforms.uMoon.value.copy(MOON_DIR);
+      camera.updateMatrixWorld(); moonView.value.copy(MOON_DIR).transformDirection(camera.matrixWorldInverse);
+      moonColor.value.setRGB(.62, .7, .92).multiplyScalar(smooth(.02, .3, MOON_DIR.y) * (1 - mood * .7) * (1 - fogAmt * .6));
       cloudMat.uniforms.uOff.value.x += dt * .006 * (.4 + gust.value);                 // clouds drift with the wind
       cloudMat.uniforms.uOff.value.y -= dt * .002 * (.4 + gust.value);
       cloudMat.uniforms.uCover.value = lerp(.56, .38, Math.max(mood, fogAmt));           // demons bring heavier cloud
@@ -842,7 +878,7 @@ window.GAME = window.GAME || {};
       getNight: () => night,
       setNight: p => { night = clamp(p, 0, 1); },
       // for testing: jump the Reader somewhere, facing a direction (radians; Math.PI = toward the tower)
-      teleport: (x, z, heading = Math.PI) => { Object.assign(player, { x, z, heading }); player.y = groundH(x, z); camYaw = heading; camPos.set(x - Math.sin(heading) * 5, player.y + 3, z - Math.cos(heading) * 5); },
+      teleport: (x, z, heading = Math.PI, pitch = .32) => { camPitch = pitch; Object.assign(player, { x, z, heading }); player.y = groundH(x, z); camYaw = heading; camPos.set(x - Math.sin(heading) * 5, player.y + 3, z - Math.cos(heading) * 5); },
       view: mode => { camMode = mode; },
       setMood: cold => { moodT = cold ? 1 : 0; },
       fog: on => { fogT = on ? 1 : 0; },

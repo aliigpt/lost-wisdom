@@ -17,6 +17,9 @@ const T = THREE;
 // updated every frame by world.js. Trees, leaves, grass, ferns, mist and rain all use it.
 export const wind = { value: 0 };
 export const gust = { value: 1 };
+// moon direction in view space + its color, for light shining through leaves (set by world.js)
+export const moonView = { value: new THREE.Vector3(0, 1, 0) };
+export const moonColor = { value: new THREE.Color('#9fb2e0') };
 
 export function rng(seed) {
   let s = seed * 9301 + 49297;
@@ -37,13 +40,24 @@ function windCode(bend, flutter) {
     ${flutter ? `transformed.x += sin(uTime * 7.0 + ph * 3.0 + position.x * 23.0 + position.z * 17.0) * ${flutter.toFixed(4)} * uGust * h;
     transformed.y += cos(uTime * 5.5 + ph * 2.0 + position.z * 19.0) * ${(flutter * .7).toFixed(4)} * uGust * h;` : ''}`;
 }
-function addWind(m, bend, flutter, fixNormals) {
+function addWind(m, bend, flutter, leaf) {
   m.onBeforeCompile = sh => {
     sh.uniforms.uTime = wind; sh.uniforms.uGust = gust;
-    sh.vertexShader = 'uniform float uTime; uniform float uGust;\n' + sh.vertexShader.replace('#include <begin_vertex>', windCode(bend, flutter));
-    if (fixNormals) sh.fragmentShader = bothSidesLit(sh.fragmentShader);
+    let vs = 'uniform float uTime; uniform float uGust;\n' + sh.vertexShader.replace('#include <begin_vertex>', windCode(bend, flutter));
+    if (leaf) {
+      // aAO: 0 deep inside the crown (dark) .. 1 on the outside (lit)
+      vs = 'attribute float aAO; varying float vAO;\n' + vs.replace('#include <begin_vertex>', '#include <begin_vertex>\n vAO = aAO;');
+      sh.uniforms.uMoonView = moonView; sh.uniforms.uMoonCol = moonColor;
+      sh.fragmentShader = 'varying float vAO; uniform vec3 uMoonView; uniform vec3 uMoonCol;\n' + bothSidesLit(sh.fragmentShader)
+        .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(0.28, 1.0, vAO);')
+        .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+          // light shining through thin leaves when the moon is behind them
+          float back = pow(max(dot(-normalize(vViewPosition), uMoonView), 0.0), 3.0);
+          reflectedLight.directDiffuse += diffuseColor.rgb * uMoonCol * (0.12 + back * 1.1) * mix(0.4, 1.0, vAO);`);
+    }
+    sh.vertexShader = vs;
   };
-  m.customProgramCacheKey = () => `wind-${bend}-${flutter}-${!!fixNormals}`;
+  m.customProgramCacheKey = () => `wind-${bend}-${flutter}-${!!leaf}`;
 }
 
 // Cards are double-sided; by default three.js flips the normal on the back side, which
@@ -64,8 +78,7 @@ export function foliageMaterials(renderer) {
   const BEND = { tree: .022, fern: .09 };
   const card = (url, tint, bend, flutter) => {
     const map = tex(url);
-    // faint emissive = light scattering through the leaves, so shaded parts stay green, not black
-    const m = new T.MeshStandardMaterial({ map, color: tint, alphaTest: .45, side: T.DoubleSide, roughness: .85, emissive: '#16240f', emissiveMap: map, emissiveIntensity: .55 });
+    const m = new T.MeshStandardMaterial({ map, color: tint, alphaTest: .45, side: T.DoubleSide, roughness: .8 });
     m.userData.isFoliage = true;
     addWind(m, bend, flutter, true);
     // the shadow-casting copy bends the same way, so shadows move with the leaves
@@ -119,7 +132,7 @@ function limb(points, r0, r1, radial = 7) {
 
 // A flat textured piece (leaf cluster / needle spray), with normals pointing away
 // from the crown center so the canopy is lit like one soft volume
-function card(w, h, matrix, crownCenter) {
+function card(w, h, matrix, crownCenter, ao = 1) {
   const g = new T.PlaneGeometry(w, h);
   g.applyMatrix4(matrix);
   const p = g.attributes.position, n = g.attributes.normal, v = new T.Vector3();
@@ -127,6 +140,7 @@ function card(w, h, matrix, crownCenter) {
     v.fromBufferAttribute(p, i).sub(crownCenter).normalize();
     n.setXYZ(i, v.x, v.y * .7 + .3, v.z);
   }
+  g.setAttribute('aAO', new T.Float32BufferAttribute(new Array(p.count).fill(Math.max(0, Math.min(1, ao))), 1));
   return g;
 }
 const jitter = (r, a) => (r() - .5) * 2 * a;
@@ -168,7 +182,8 @@ export function buildOak(seed, mats) {
       const p = c.clone().add(new T.Vector3(jitter(r, spread), jitter(r, spread * .7), jitter(r, spread)));
       e.set(r() * Math.PI, r() * Math.PI * 2, r() * Math.PI); q.setFromEuler(e);
       const size = 1.0 + r() * .7;
-      leaves.push(card(size, size, m.compose(p, q, s), crown));
+      const ao = Math.min(1, p.distanceTo(crown) / 3.6) * .8 + Math.min(1, Math.max(0, (p.y - 4) / 4)) * .3;
+      leaves.push(card(size, size, m.compose(p, q, s), crown, ao));
     }
   };
   tips.forEach(t => place(t, 1.15, 13));
@@ -204,13 +219,13 @@ export function buildPine(seed, mats) {
         const yaw = new T.Quaternion().setFromAxisAngle(up, -a);
         const pitch = new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 0, 1), droop);
         q.copy(yaw).multiply(pitch).multiply(flat);
-        needles.push(card(len * 1.15, len * .62, m.compose(center, q, s), axis));
+        needles.push(card(len * 1.15, len * .62, m.compose(center, q, s), axis, .45 + k * .35 + (tilt > 0 ? .2 : 0)));
       });
     }
   }
   for (let i = 0; i < 3; i++) {   // the very top
     q.setFromAxisAngle(up, i * Math.PI / 3);
-    needles.push(card(.9, 1.6, m.compose(new T.Vector3(0, H - .2, 0), q, s), axis));
+    needles.push(card(.9, 1.6, m.compose(new T.Vector3(0, H - .2, 0), q, s), axis, 1));
   }
   const bg = mergeGeometries(bark), ng = mergeGeometries(needles);
   normalize([bg, ng], H);
@@ -232,6 +247,9 @@ export function buildFern(mats) {
   }
   const geo = mergeGeometries(parts);
   normalize([geo], .85);
+  const fp = geo.attributes.position, fao = new Float32Array(fp.count);
+  for (let i = 0; i < fp.count; i++) fao[i] = .25 + Math.min(1, fp.getY(i)) * .75;
+  geo.setAttribute('aAO', new T.BufferAttribute(fao, 1));
   const n = geo.attributes.normal; for (let i = 0; i < n.count; i++) n.setXYZ(i, 0, 1, 0);
   const g = new T.Group();
   const mesh = new T.Mesh(geo, mats.fern); mesh.customDepthMaterial = mats.fern.customDepth; g.add(mesh);
@@ -255,10 +273,10 @@ export function buildGrass(mats, heightTex, size, count = 16000, radius = 28) {
   geo.setAttribute('aG', new T.InstancedBufferAttribute(data, 4));
   geo.instanceCount = count;
   const center = { value: new T.Vector2() };
-  const mat = new T.MeshStandardMaterial({ map: mats.grass, alphaTest: .5, side: T.DoubleSide, roughness: 1, color: '#9aa98a', emissive: '#1a2410', emissiveMap: mats.grass, emissiveIntensity: .45 });
+  const mat = new T.MeshStandardMaterial({ map: mats.grass, alphaTest: .5, side: T.DoubleSide, roughness: .9, color: '#86a070' });
   mat.onBeforeCompile = sh => {
-    Object.assign(sh.uniforms, { uTime: wind, uGust: gust, uCenter: center, uHeight: { value: heightTex }, uSize: { value: size }, uHalf: { value: radius }, uN: { value: heightTex.image.width } });
-    sh.vertexShader = `uniform float uTime; uniform float uGust; uniform vec2 uCenter; uniform sampler2D uHeight; uniform float uSize; uniform float uHalf; uniform float uN; attribute vec4 aG;\n` +
+    Object.assign(sh.uniforms, { uMoonView: moonView, uMoonCol: moonColor, uTime: wind, uGust: gust, uCenter: center, uHeight: { value: heightTex }, uSize: { value: size }, uHalf: { value: radius }, uN: { value: heightTex.image.width } });
+    sh.vertexShader = `varying float vH; uniform float uTime; uniform float uGust; uniform vec2 uCenter; uniform sampler2D uHeight; uniform float uSize; uniform float uHalf; uniform float uN; attribute vec4 aG;\n` +
       sh.vertexShader
         .replace('#include <beginnormal_vertex>', 'vec3 objectNormal = vec3(0.0, 1.0, 0.0);')
         .replace('#include <begin_vertex>', `
@@ -266,7 +284,7 @@ export function buildGrass(mats, heightTex, size, count = 16000, radius = 28) {
           vec4 hm = texture2D(uHeight, ((off + uSize * 0.5) / uSize * (uN - 1.0) + 0.5) / uN);
           float fade = smoothstep(uHalf, uHalf * 0.6, length(off - uCenter)) * step(0.5, hm.g);
           float c = cos(aG.z), s = sin(aG.z);
-          vec3 transformed = position;
+          vec3 transformed = position; vH = position.y / 0.55;
           transformed.xz = mat2(c, -s, s, c) * transformed.xz;
           transformed *= aG.w * fade;
           // gusts roll across the field as waves
@@ -275,7 +293,11 @@ export function buildGrass(mats, heightTex, size, count = 16000, radius = 28) {
           transformed.x += (lean + sin(uTime * 5.0 + off.y * 3.1) * 0.015) * position.y;
           transformed.z += (lean * 0.4 + cos(uTime * 4.3 + off.x * 2.7) * 0.012) * position.y;
           transformed.xz += off; transformed.y += hm.r - 0.04;`);
-    sh.fragmentShader = bothSidesLit(sh.fragmentShader);
+    sh.fragmentShader = 'varying float vH; uniform vec3 uMoonView; uniform vec3 uMoonCol;\n' + bothSidesLit(sh.fragmentShader)
+      .replace('#include <map_fragment>', '#include <map_fragment>\n diffuseColor.rgb *= mix(0.22, 1.05, smoothstep(0.0, 0.9, vH));')
+      .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+        float back = pow(max(dot(-normalize(vViewPosition), uMoonView), 0.0), 3.0);
+        reflectedLight.directDiffuse += diffuseColor.rgb * uMoonCol * (0.1 + back * 0.9) * vH;`);
   };
   const mesh = new T.Mesh(geo, mat);
   mesh.frustumCulled = false; mesh.receiveShadow = true;
