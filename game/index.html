@@ -6,12 +6,13 @@
 <title>Lost Wisdom</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Nunito:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=IM+Fell+English:ital@0;1&family=Nunito:wght@400;600;700&display=swap">
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
 <canvas id="world" aria-hidden="true"></canvas>
+<div id="vignette"></div>
 
 <main id="app">
   <!-- TITLE (text comes from content/script.js) -->
@@ -23,6 +24,21 @@
     <button id="begin" class="btn">Begin</button>
     <p class="credits">Tap a symbol, then tap the word you think it means. Pictures in the margin are clues. Wrong guesses cost nothing.</p>
   </section>
+
+  <!-- CHOOSE: boy or girl -->
+  <section id="choose" class="screen" hidden>
+    <p class="eyebrow">Choose your Reader</p>
+    <div class="choices">
+      <button class="choice" data-reader="boy"><img src="characters/boy.jpg" alt="The boy reader in a burgundy cloak"><span>Boy</span></button>
+      <button class="choice" data-reader="girl"><img src="characters/girl.jpg" alt="The girl reader in a burgundy cloak"><span>Girl</span></button>
+    </div>
+  </section>
+
+  <!-- WALK: shown while the player walks somewhere -->
+  <div id="walk-hud" hidden>
+    <div class="objective"><span class="obj-label">Objective</span><span id="objective-text"></span></div>
+    <p class="controls-hint">WASD or arrow keys to walk · Shift to run · drag to look around</p>
+  </div>
 
   <!-- SCENE: dialogue and narration between pages -->
   <section id="scene" class="screen" hidden>
@@ -75,6 +91,9 @@
   </section>
 </main>
 
+<!-- Touch joystick (phones and tablets) -->
+<div id="joystick" hidden><div id="stick"></div></div>
+
 <!-- Demon encounter -->
 <div id="veil" hidden></div>
 <div id="demon-card" class="demon-card" hidden role="dialog" aria-modal="true" aria-labelledby="demon-name">
@@ -93,21 +112,7 @@
   <div class="breath-dots"><span></span><span></span><span></span></div>
 </div>
 
-<!-- Libraries -->
-<script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
-
-<!-- Your content (edit these) -->
-<script src="content/glyphs.js"></script>
-<script src="content/pictures.js"></script>
-<script src="content/demons.js"></script>
-<script src="content/script.js"></script>
-
-<!-- Game code -->
-<script src="src/ui.js"></script>
-<script src="src/world.js"></script>
-<script src="src/demons.js"></script>
-<script src="src/book.js"></script>
-<script src="src/scenes.js"></script>
-<script src="src/main.js"></script>
+<!-- Loads the content files and game code in order -->
+<script type="module" src="./src/entry.js"></script>
 </body>
 </html>

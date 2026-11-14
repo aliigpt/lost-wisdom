@@ -20,9 +20,9 @@ window.GAME = window.GAME || {};
     const line = lines[i];
     if (!line) return finish();
     const who = $('#scene-who');
-    who.textContent = line.who || '';
+    who.textContent = GAME.ui.say(line.who || '');
     who.hidden = !line.who;
-    $('#scene-text').textContent = line.text || '';
+    $('#scene-text').textContent = GAME.ui.say(line.text || '');
     $('#scene-next').textContent = i === lines.length - 1 ? 'Continue' : 'Next';
     $('#scene-next').focus();
   }

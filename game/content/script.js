@@ -15,19 +15,29 @@ GAME.info = {
 };
 
 // ----- The story, step by step -----
-// There are two kinds of steps:
+// There are three kinds of steps:
 //
 // 1. A SCENE: story moments, dialogue, narration.
+//    Boy/girl text: write {he|she}, {his|her}, {boy|girl} anywhere in your text.
+//    The game uses the first word for the boy and the second for the girl.
+//
 //    {
 //      type: 'scene',
-//      weather: 'sun' or 'rain',            (optional, changes the 3D sky)
+//      weather: 'calm' or 'rain',           (optional: a clear night, or a rainy one)
 //      lines: [
 //        { who: 'Name', text: 'What they say.' },
 //        { text: 'Narration has no "who".' }
 //      ]
 //    }
 //
-// 2. A PAGE: a transcription puzzle.
+// 2. A WALK: the player walks the Reader somewhere in the 3D world.
+//    {
+//      type: 'walk',
+//      to: 'tower',                       one of: house, river, bridge, tower
+//      objective: 'Find the clock tower.'  shown on screen while walking
+//    }
+//
+// 3. A PAGE: a transcription puzzle.
 //    {
 //      type: 'page',
 //      words:   ['word', 'word', ...],   symbols shown, in order (each needs a symbol in glyphs.js)
@@ -41,12 +51,17 @@ GAME.info = {
 GAME.script = [
   {
     type: 'scene',
-    weather: 'sun',
+    weather: 'calm',
     lines: [
       { text: '[Placeholder narration. Your opening goes here.]' },
       { who: '[Character]', text: '[Placeholder line of dialogue.]' },
-      { who: '[Reader]', text: '[Placeholder reply.]' }
+      { who: '[Reader]', text: '[Placeholder reply. Boy/girl example: {he|she} looks at the river.]' }
     ]
+  },
+  {
+    type: 'walk',
+    to: 'tower',
+    objective: '[Placeholder objective] Follow the path through the woods to the clock tower.'
   },
   {
     type: 'page',

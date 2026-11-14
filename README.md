@@ -52,6 +52,17 @@ Everything in `content/` is placeholder text marked `[Placeholder]`. Replace it 
 
 ## Playing it
 
-Open `game/index.html` in a browser. It needs internet for Three.js and the fonts.
+The game uses 3D model files, which browsers only load from a web server, so double-clicking `index.html` won't work. Instead:
+
+1. Install [Node.js](https://nodejs.org) (the LTS version), once.
+2. In VS Code, open the `lost-wisdom` folder, then open a terminal (Terminal → New Terminal).
+3. The first time only, run `npm install`.
+4. Run `npm run dev`. The game opens in your browser. Leave the terminal running while you play; changes you save show up right away.
+
+Controls: WASD or arrow keys to walk, Shift to run, drag to look around. On phones, use the joystick.
+
+## Adding models from Higgsfield
+
+Put the `.glb` file in `game/public/models/` with the name the game expects (for example `cottage.glb`), then run `npm run optimize-models` to shrink its textures.
 
 If something doesn't show up, open the browser console (F12). The game prints a warning when a word has no symbol, or when a page uses a picture that doesn't exist.

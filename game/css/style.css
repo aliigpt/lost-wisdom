@@ -2,8 +2,8 @@
 /* Layout: an open manuscript under a sky that changes with the reader's mood; word slips and lexicon sit beneath it.
    Single visual world by choice (weather drives the palette, not the OS theme). */
 :root {
-  --sky-warm-top: #fbe2a8;
-  --sky-warm-bottom: #eea36a;
+  --sky-warm-top: #05070f;
+  --sky-warm-bottom: #1f2c45;
   --sky-cold-top: #3b4759;
   --sky-cold-bottom: #171d29;
   --paper: #fbf1dc;
@@ -70,11 +70,11 @@ body.cold { background: linear-gradient(180deg, var(--sky-cold-top), var(--sky-c
 #title-screen { padding-top: min(8vh, 64px); text-align: center; }
 #title-screen h1 {
   font-family: var(--font-display); font-weight: 400; font-size: clamp(52px, 11vw, 104px);
-  line-height: .95; margin: 0; color: #3a2414; text-wrap: balance;
-  text-shadow: 0 2px 0 rgba(255,240,200,.6);
+  line-height: .95; margin: 0; color: #f3e6c8; text-wrap: balance;
+  text-shadow: 0 2px 12px rgba(10,8,30,.7);
 }
-.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: #6b4426; margin: 0; }
-.lede { font-family: var(--font-display); font-style: italic; font-size: 21px; line-height: 1.45; max-width: 34ch; margin: 0; color: #4a2f1e; }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: #e2c27e; margin: 0; text-shadow: 0 1px 6px rgba(10,8,30,.8); }
+.lede { font-family: var(--font-display); font-style: italic; font-size: 21px; line-height: 1.45; max-width: 34ch; margin: 0; color: #eadcc0; text-shadow: 0 1px 8px rgba(10,8,30,.8); }
 .credits {
   font-size: 13px; color: var(--ink); max-width: 46ch; line-height: 1.5; margin: 0;
   background: color-mix(in srgb, var(--paper) 85%, transparent); border-radius: 3px; padding: 8px 12px;
@@ -245,7 +245,7 @@ body.demon-walls #world { cursor: pointer; }
 
 /* ---------- ending ---------- */
 #ending { text-align: center; padding-top: 24px; }
-#ending h2 { font-family: var(--font-display); font-weight: 400; font-size: clamp(38px, 7vw, 60px); margin: 0; color: #3a2414; text-wrap: balance; }
+#ending h2 { font-family: var(--font-display); font-weight: 400; font-size: clamp(38px, 7vw, 60px); margin: 0; color: #f3e6c8; text-wrap: balance; }
 .scripture {
   background: var(--paper); border: 1px solid var(--paper-edge); border-radius: 4px; padding: 26px 28px;
   width: min(560px, 100%); box-shadow: 0 18px 40px rgba(40,20,10,.25);
@@ -259,9 +259,9 @@ body.demon-walls #world { cursor: pointer; }
 .companion:nth-child(2) .blob { animation-delay: .4s; }
 .companion:nth-child(3) .blob { animation-delay: .8s; }
 .companion:nth-child(4) .blob { animation-delay: 1.2s; }
-.companion strong { font-family: var(--font-display); font-weight: 400; font-size: 18px; color: #3a2414; }
-.companion span { font-size: 13px; line-height: 1.4; color: #4a2f1e; }
-.closing { font-family: var(--font-display); font-style: italic; font-size: 24px; color: #3a2414; margin: 0; max-width: 30ch; line-height: 1.35; text-wrap: balance; }
+.companion strong { font-family: var(--font-display); font-weight: 400; font-size: 18px; color: #f3e6c8; }
+.companion span { font-size: 13px; line-height: 1.4; color: #dccdb0; }
+.closing { font-family: var(--font-display); font-style: italic; font-size: 24px; color: #f3e6c8; margin: 0; max-width: 30ch; line-height: 1.35; text-wrap: balance; }
 
 /* ---------- motion ---------- */
 @keyframes shake { 0%,100% { translate: 0 } 20% { translate: -6px } 40% { translate: 5px } 60% { translate: -3px } 80% { translate: 2px } }
@@ -300,3 +300,149 @@ body.demon-walls #world { cursor: pointer; }
 .dialogue .say { margin: 0; font-family: var(--font-display); font-size: 22px; line-height: 1.45; }
 .dialogue .btn { align-self: flex-end; }
 #ending-lines { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+
+/* ---------- choose boy / girl (placeholder) ---------- */
+#choose { padding-top: min(8vh, 64px); }
+.choices { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+.choice {
+  width: min(220px, 42vw); display: flex; flex-direction: column; align-items: center; gap: 10px;
+  background: var(--paper); border: 2px solid var(--paper-edge); border-radius: 4px; padding: 10px 10px 14px; cursor: pointer;
+  box-shadow: 0 14px 30px rgba(0,0,0,.35); transition: transform .2s ease, border-color .2s;
+}
+.choice:hover, .choice:focus-visible { transform: translateY(-4px); border-color: var(--gold); }
+.choice img { width: 100%; height: auto; border-radius: 2px; background: #fff; }
+.choice span { font-family: var(--font-display); font-size: 24px; }
+
+/* =====================================================================
+   FANTASY THEME (from design/inspiration/ui): dark panels in antique-gold
+   frames, parchment for the Book, engraved serif capitals.
+   The frame art lives in public/ui/ and was cut from the Higgsfield UI kit.
+   ===================================================================== */
+:root {
+  --gold: #c9a24a;
+  --gold-hi: #f1d892;
+  --gold-lo: #7a5a22;
+  --panel: rgba(18, 12, 8, .9);
+  --panel-ink: #efe3c7;
+  --panel-soft: #c8b994;
+  --font-engraved: "Cinzel", "Trajan Pro", "Times New Roman", serif;
+}
+body, body.cold { background: linear-gradient(180deg, #05070f, #1f2c45) fixed; }
+#vignette {
+  position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(0,0,0,.55) 100%);
+}
+
+/* Title */
+#title-screen h1 {
+  font-family: var(--font-engraved); font-weight: 700; letter-spacing: .04em;
+  font-size: clamp(46px, 9vw, 96px);
+  background: linear-gradient(180deg, #fff3cf 0%, var(--gold-hi) 35%, var(--gold) 60%, var(--gold-lo) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: none; filter: drop-shadow(0 3px 6px rgba(0,0,0,.85));
+}
+.eyebrow { font-family: var(--font-engraved); font-weight: 500; letter-spacing: .3em; color: var(--gold-hi); }
+.lede { color: var(--panel-ink); }
+.credits { background: var(--panel); color: var(--panel-soft); border: 1px solid var(--gold-lo); }
+
+/* Buttons: gold-framed plates */
+.btn, .demon-card .btn {
+  font-family: var(--font-engraved); font-weight: 700; font-size: 17px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--gold-hi); background: none; box-shadow: none; border-radius: 0;
+  border-style: solid; border-width: 18px 34px;
+  border-image: url(/ui/button.png) 40 76 fill / 18px 34px stretch;
+  padding: 2px 12px; min-width: 200px; text-shadow: 0 1px 2px #000;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,.6));
+}
+.btn:hover { color: #fff6dc; filter: drop-shadow(0 0 10px rgba(241,216,146,.35)) drop-shadow(0 4px 8px rgba(0,0,0,.6)); }
+
+/* Dark ornate panels */
+.dialogue, .demon-card, .choice, #breath {
+  background: none; box-shadow: none; border-radius: 0; color: var(--panel-ink);
+  border-style: solid; border-width: 40px 48px;
+  border-image: url(/ui/panel.png) 104 124 fill / 40px 48px stretch;
+  filter: drop-shadow(0 18px 30px rgba(0,0,0,.65));
+}
+.dialogue { padding: 4px 8px; }
+.dialogue .who { font-family: var(--font-engraved); color: var(--gold-hi); letter-spacing: .2em; }
+.dialogue .say { color: var(--panel-ink); }
+.demon-card { padding: 6px 10px; }
+.demon-card h2 { font-family: var(--font-engraved); color: var(--gold-hi); letter-spacing: .06em; }
+#breath { padding: 0 6px; }
+
+/* Narration line and HUD */
+#whisper, #whisper.demon {
+  background: var(--panel); color: var(--panel-ink);
+  border: 1px solid var(--gold-lo); border-radius: 0;
+  box-shadow: inset 0 0 0 1px rgba(241,216,146,.12), 0 8px 24px rgba(0,0,0,.5);
+}
+#whisper.demon { border-color: #4b5a78; }
+.hud .tag {
+  background: var(--panel); color: var(--gold-hi); border: 1px solid var(--gold-lo); border-radius: 0;
+  font-family: var(--font-engraved); font-weight: 700; letter-spacing: .2em;
+}
+.pip { border-color: var(--gold); background: rgba(0,0,0,.5); transform: rotate(45deg); border-radius: 1px; }
+.pip.done { background: var(--gold); }
+.pip.now { background: var(--gold-hi); box-shadow: 0 0 8px var(--gold-hi); }
+
+/* The Book: parchment pages in a gold frame */
+.book, body.cold .book {
+  background: url(/ui/parchment.jpg) center / cover, #d9c08c;
+  background-clip: padding-box;
+  border-style: solid; border-width: 34px 40px; border-radius: 0;
+  border-image: url(/ui/panel.png) 104 124 / 34px 40px stretch;
+  box-shadow: none; filter: drop-shadow(0 24px 40px rgba(0,0,0,.7));
+  --ink: #2c1c10; --ink-soft: #6b5238; --paper-edge: #a8875a; --gold: #8a5a12;
+}
+body.cold .book { filter: saturate(.55) brightness(.82) drop-shadow(0 24px 40px rgba(0,0,0,.7)); }
+.book::after { background: linear-gradient(90deg, transparent, rgba(60,30,10,.18) 45%, rgba(40,20,5,.3) 50%, rgba(60,30,10,.18) 55%, transparent); }
+.label { font-family: var(--font-engraved); letter-spacing: .22em; }
+.book .btn { min-width: 0; }
+
+/* Word slips: torn parchment */
+.chip {
+  background: url(/ui/parchment.jpg) center / 300%, #d9c08c; color: #2c1c10;
+  border: 1px solid #8a6a3a; border-radius: 1px; box-shadow: 0 6px 14px rgba(0,0,0,.55);
+}
+
+/* Lexicon */
+.lexicon { background: var(--panel); border: 1px solid var(--gold-lo); border-radius: 0; color: var(--panel-ink); }
+.lexicon .label { color: var(--gold-hi); }
+.lexicon .entry .glyph { stroke: var(--gold-hi); }
+.lexicon .empty { color: var(--panel-soft); }
+
+/* Choose your Reader */
+.choice { padding: 2px 2px 6px; width: min(240px, 42vw); }
+.choice img { border-radius: 0; background: #ece6dc; }
+.choice span { font-family: var(--font-engraved); font-weight: 700; color: var(--gold-hi); letter-spacing: .2em; text-transform: uppercase; font-size: 20px; }
+.choice:hover, .choice:focus-visible { border-color: transparent; transform: translateY(-4px); filter: drop-shadow(0 0 14px rgba(241,216,146,.3)) drop-shadow(0 18px 30px rgba(0,0,0,.65)); }
+
+/* Ending */
+#ending h2 {
+  font-family: var(--font-engraved); font-weight: 700;
+  background: linear-gradient(180deg, #fff3cf, var(--gold-hi) 40%, var(--gold) 70%, var(--gold-lo));
+  -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 3px 6px rgba(0,0,0,.85));
+}
+.scripture { background: url(/ui/parchment.jpg) center / cover, #d9c08c; border: 1px solid #8a6a3a; border-radius: 0; color: #2c1c10; box-shadow: 0 20px 40px rgba(0,0,0,.6); }
+.scripture .num { color: #6b5238; }
+
+/* ---------- walking: objective, controls hint, touch joystick ---------- */
+#walk-hud {
+  position: fixed; top: max(16px, env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px));
+  display: flex; flex-direction: column; gap: 8px; pointer-events: none; max-width: min(420px, calc(100% - 32px));
+}
+.objective {
+  display: flex; flex-direction: column; gap: 4px; padding: 10px 16px 12px;
+  background: linear-gradient(90deg, rgba(14,10,7,.88), rgba(14,10,7,.55) 80%, transparent);
+  border-left: 2px solid var(--gold);
+}
+.obj-label { font-family: var(--font-engraved); font-weight: 700; font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: var(--gold); }
+#objective-text { font-family: var(--font-display); font-size: 19px; color: var(--panel-ink); text-shadow: 0 1px 4px #000; }
+.controls-hint { margin: 0; padding-left: 18px; font-size: 12px; color: rgba(239,227,199,.6); text-shadow: 0 1px 3px #000; }
+@media (pointer: coarse) { .controls-hint { display: none; } }
+#joystick {
+  position: fixed; left: max(28px, env(safe-area-inset-left, 0px)); bottom: max(28px, env(safe-area-inset-bottom, 0px));
+  width: 120px; height: 120px; border-radius: 50%; touch-action: none; z-index: 30;
+  background: radial-gradient(circle, rgba(14,10,7,.35), rgba(14,10,7,.6)); border: 1.5px solid rgba(201,162,74,.7);
+}
+#stick { position: absolute; left: 35px; top: 35px; width: 50px; height: 50px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, var(--gold-hi), var(--gold-lo)); box-shadow: 0 2px 8px #000; }

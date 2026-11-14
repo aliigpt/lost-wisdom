@@ -24,10 +24,33 @@ window.GAME = window.GAME || {};
   function run() {
     const item = script[step];
     if (!item) return showEnding();
-    if (item.type === 'scene') GAME.scenes.play(item, next);
-    else if (item.type === 'page') GAME.book.open(item, pages.indexOf(item), pages.length, step === script.length - 1, next);
+    if (item.type === 'scene') { GAME.world.setControl(false); GAME.scenes.play(item, next); }
+    else if (item.type === 'page') { GAME.world.setControl(false); GAME.book.open(item, pages.indexOf(item), pages.length, step === script.length - 1, next); }
+    else if (item.type === 'walk') walk(item, next);
     else { console.warn('Unknown step type in script.js:', item); next(); }
   }
+  // ----- Walking: the player moves the Reader until they reach the place -----
+  const touch = matchMedia('(pointer: coarse)').matches;
+  function walk(item, done) {
+    $('#objective-text').textContent = GAME.ui.say(item.objective || `Walk to the ${item.to}`);
+    $('#walk-hud').hidden = false;
+    $('#joystick').hidden = !touch;
+    GAME.world.walkTo(item.to, () => { $('#walk-hud').hidden = true; $('#joystick').hidden = true; GAME.world.joystick(0, 0); done(); });
+  }
+  // touch joystick
+  const joy = $('#joystick'), stick = $('#stick');
+  let joyId = null;
+  const joyMove = e => {
+    const r = joy.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, max = r.width / 2;
+    let dx = e.clientX - cx, dy = e.clientY - cy; const len = Math.hypot(dx, dy);
+    if (len > max) { dx *= max / len; dy *= max / len; }
+    stick.style.transform = `translate(${dx}px, ${dy}px)`;
+    GAME.world.joystick(dx / max, -dy / max);
+  };
+  joy.addEventListener('pointerdown', e => { joyId = e.pointerId; joy.setPointerCapture(e.pointerId); joyMove(e); });
+  joy.addEventListener('pointermove', e => { if (e.pointerId === joyId) joyMove(e); });
+  ['pointerup', 'pointercancel'].forEach(ev => joy.addEventListener(ev, () => { joyId = null; stick.style.transform = ''; GAME.world.joystick(0, 0); }));
+
   function next() {
     step++;
     scrollTo({ top: 0, behavior: GAME.ui.reduce ? 'auto' : 'smooth' });
@@ -35,7 +58,7 @@ window.GAME = window.GAME || {};
   }
 
   function start() {
-    ['#title-screen', '#ending', '#game', '#scene'].forEach(s => { $(s).hidden = true; });
+    ['#title-screen', '#choose', '#ending', '#game', '#scene', '#walk-hud'].forEach(s => { $(s).hidden = true; });
     GAME.book.reset(); GAME.demons.reset(); GAME.world.reset();
     GAME.setWeather(false);
     script = GAME.script || [];
@@ -48,9 +71,9 @@ window.GAME = window.GAME || {};
   function showEnding() {
     const end = GAME.ending || {};
     $('#game').hidden = true; $('#scene').hidden = true; $('#ending').hidden = false;
-    $('#ending-title').textContent = end.title || '';
+    $('#ending-title').textContent = GAME.ui.say(end.title || '');
     $('#ending-lines').innerHTML = '';
-    (end.lines || []).forEach(t => { const p = document.createElement('p'); p.className = 'lede'; p.textContent = t; $('#ending-lines').appendChild(p); });
+    (end.lines || []).forEach(t => { const p = document.createElement('p'); p.className = 'lede'; p.textContent = GAME.ui.say(t); $('#ending-lines').appendChild(p); });
 
     const lines = GAME.book.transcribed();
     $('#scripture').hidden = !(end.showTranscription && lines.length);
@@ -69,6 +92,14 @@ window.GAME = window.GAME || {};
     scrollTo({ top: 0 });
   }
 
-  $('#begin').addEventListener('click', start);
+  // ----- Choose boy or girl, then start -----
+  GAME.player = { reader: null };
+  $('#begin').addEventListener('click', () => { $('#title-screen').hidden = true; $('#choose').hidden = false; });
+  document.querySelectorAll('.choice').forEach(btn => btn.addEventListener('click', () => {
+    GAME.player.reader = btn.dataset.reader;
+    GAME.world.setReader(GAME.player.reader);
+    $('#choose').hidden = true;
+    start();
+  }));
   $('#again').addEventListener('click', start);
 })();

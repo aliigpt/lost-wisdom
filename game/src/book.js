@@ -22,7 +22,7 @@ window.GAME = window.GAME || {};
     $('#game').hidden = false;
     selected = firstOpen();
     renderPicture();
-    const tr = $('#translation'); tr.textContent = p.english || ''; tr.classList.remove('show');
+    const tr = $('#translation'); tr.textContent = GAME.ui.say(p.english || ''); tr.classList.remove('show');
     $('#turn').hidden = true;
     $('#glyph-line').classList.remove('complete');
     $('#folio-l').textContent = `folio ${folio(no)}, recto`;
@@ -87,7 +87,7 @@ window.GAME = window.GAME || {};
   }
 
   function completePage() {
-    transcribed.push(page.english || page.words.join(' '));
+    transcribed.push(GAME.ui.say(page.english || page.words.join(' ')));
     $('#glyph-line').classList.add('complete');
     $('#translation').classList.add('show');
     GAME.world.celebrate();

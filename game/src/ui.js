@@ -9,10 +9,16 @@ GAME.ui = {
 
   reduce: matchMedia('(prefers-reduced-motion: reduce)').matches,
 
+  // Boy/girl text: "{he|she} opens the door" -> first option for the boy, second for the girl
+  say(txt) {
+    const girl = GAME.player && GAME.player.reader === 'girl';
+    return String(txt ?? '').replace(/\{([^{}|]*)\|([^{}]*)\}/g, (_, boy, g) => (girl ? g : boy));
+  },
+
   // The narration line above the book
   whisper(txt, demon = false) {
     const w = document.querySelector('#whisper');
-    w.textContent = txt;
+    w.textContent = GAME.ui.say(txt);
     w.classList.toggle('demon', demon);
   },
 
