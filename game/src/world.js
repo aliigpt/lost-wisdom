@@ -686,7 +686,11 @@ window.GAME = window.GAME || {};
     // ----- Demons: wraiths in black cloaks (simple stand-in until the model loads) -----
     let demonGltf = null;
     // sized once on load: a fresh clone's bones aren't placed yet, so measuring the clone gives the wrong height
-    loader.load('models/demon.glb', g => { fit(g.scene, { height: 1.25 }); demonGltf = g; }, undefined, () => console.info('No model at models/demon.glb; using a simple shape.'));
+    loader.load('models/demon.glb', g => {
+      fit(g.scene, { height: 1.25 });
+      g.scene.traverse(o => { if (o.isMesh) [].concat(o.material).forEach(m => m.color && m.color.multiplyScalar(.35)); });   // black cloaks, darkened once (clones share these materials)
+      demonGltf = g;
+    }, undefined, () => console.info('No model at models/demon.glb; using a simple shape.'));
     const demons = {};
     function makeDemon() {
       const g = new T.Group(); g.userData = { scale: 0, scaleT: 0, mode: 'attack', phase: rnd() * 6 };
@@ -698,9 +702,9 @@ window.GAME = window.GAME || {};
         [-.1, .1].forEach(x => add(new T.SphereGeometry(.035, 8, 6), new T.MeshBasicMaterial({ color: '#cfe0ff' }), x, 1.12, .32, g));
       }
       // spectral light: a cold rim from behind and a faint inner glow, so a black wraith reads in the dark
-      g.traverse(o => { if (o.isMesh) [].concat(o.material).forEach(m => { if (m.emissive) { m.emissive.set('#1c2840'); m.emissiveIntensity = 1; } }); });
+      g.traverse(o => { if (o.isMesh) [].concat(o.material).forEach(m => { if (m.emissive) { m.emissive.set('#0a0f1a'); m.emissiveIntensity = 1; } }); });
       const rim = new T.PointLight('#a9c0ff', 3 * LI, 6, 1.6); rim.position.set(0, 1.4, -.9); g.add(rim);
-      const glow = new T.PointLight('#7f96c8', 1.2 * LI, 5, 1.8); glow.position.set(0, 1, .6); g.add(glow);
+      const glow = new T.PointLight('#7f96c8', .35 * LI, 4, 1.8); glow.position.set(0, 1, .6); g.add(glow);
       g.scale.setScalar(.001); scene.add(g);
       return g;
     }
