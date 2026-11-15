@@ -696,7 +696,10 @@ window.GAME = window.GAME || {};
         add(new T.ConeGeometry(.45, 1.3, 12), mat.dark, 0, .65, 0, g);
         [-.1, .1].forEach(x => add(new T.SphereGeometry(.035, 8, 6), new T.MeshBasicMaterial({ color: '#cfe0ff' }), x, 1.12, .32, g));
       }
-      const glow = new T.PointLight('#7f96c8', .8 * LI, 5, 1.8); glow.position.y = 1; g.add(glow);
+      // spectral light: a cold rim from behind and a faint inner glow, so a black wraith reads in the dark
+      g.traverse(o => { if (o.isMesh) [].concat(o.material).forEach(m => { if (m.emissive) { m.emissive.set('#1c2840'); m.emissiveIntensity = 1; } }); });
+      const rim = new T.PointLight('#a9c0ff', 3 * LI, 6, 1.6); rim.position.set(0, 1.4, -.9); g.add(rim);
+      const glow = new T.PointLight('#7f96c8', 1.2 * LI, 5, 1.8); glow.position.set(0, 1, .6); g.add(glow);
       g.scale.setScalar(.001); scene.add(g);
       return g;
     }
