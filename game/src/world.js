@@ -685,12 +685,13 @@ window.GAME = window.GAME || {};
 
     // ----- Demons: wraiths in black cloaks (simple stand-in until the model loads) -----
     let demonGltf = null;
-    loader.load('models/demon.glb', g => { demonGltf = g; }, undefined, () => console.info('No model at models/demon.glb; using a simple shape.'));
+    // sized once on load: a fresh clone's bones aren't placed yet, so measuring the clone gives the wrong height
+    loader.load('models/demon.glb', g => { fit(g.scene, { height: 1.25 }); demonGltf = g; }, undefined, () => console.info('No model at models/demon.glb; using a simple shape.'));
     const demons = {};
     function makeDemon() {
       const g = new T.Group(); g.userData = { scale: 0, scaleT: 0, mode: 'attack', phase: rnd() * 6 };
       if (demonGltf) {
-        const model = matte(fit(SkeletonUtils.clone(demonGltf.scene), { height: 1.25 })); g.add(model);
+        const model = matte(SkeletonUtils.clone(demonGltf.scene)); g.add(model);
         if (demonGltf.animations.length) { const m = new T.AnimationMixer(model); mixers.push(m); m.clipAction(demonGltf.animations[0]).play(); }
       } else {
         add(new T.ConeGeometry(.45, 1.3, 12), mat.dark, 0, .65, 0, g);
