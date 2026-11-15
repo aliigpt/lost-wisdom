@@ -943,16 +943,17 @@ window.GAME = window.GAME || {};
       const fwx = Math.sin(player.heading), fwz = Math.cos(player.heading);
       for (const id in demons) {
         const d = demons[id], u = d.userData;
-        u.scale += (u.scaleT - u.scale) * .05; d.scale.setScalar(Math.max(.001, u.scale));
+        const kf = n => 1 - Math.pow(1 - n, Math.min(dt, .25) * 60);   // per-frame rate at 60 fps, the same speed at any frame rate
+        u.scale += (u.scaleT - u.scale) * kf(.05); d.scale.setScalar(Math.max(.001, u.scale));
         if (u.mode === 'attack') {
           v3.set(player.x + fwx * 2.6 + fwz * 1.1, 0, player.z + fwz * 2.6 - fwx * 1.1);
           v3.y = groundH(v3.x, v3.z) + .15 + Math.sin(t * 1.4 + u.phase) * .15;
-          d.position.lerp(v3, .05);
+          d.position.lerp(v3, kf(.05));
           if (id === 'flutter') d.position.x += (Math.random() - .5) * .05;
         } else {
           const a = t * .45 + ci * (Math.PI / 2) + u.phase;
           v3.set(player.x + Math.sin(a) * 1.3, 0, player.z + Math.cos(a) * 1.3); v3.y = groundH(v3.x, v3.z) + Math.abs(Math.sin(t * 2.5 + ci)) * .08;
-          d.position.lerp(v3, .08); ci++;
+          d.position.lerp(v3, kf(.08)); ci++;
         }
         d.rotation.y = Math.atan2(camera.position.x - d.position.x, camera.position.z - d.position.z);
       }
@@ -1007,7 +1008,10 @@ window.GAME = window.GAME || {};
       // the night: 0 = dusk, 1 = sunrise (for a 'home before sunrise' timer)
       getNight: () => night,
       setNight: p => { night = clamp(p, 0, 1); },
-      debug: () => ({ readerLoaded: !!readerModel, readerVisible: readerModel ? readerModel.visible : null, kind: readerKind, demonLoaded: !!demonGltf }),
+      debug: () => ({ readerLoaded: !!readerModel, readerVisible: readerModel ? readerModel.visible : null, kind: readerKind, demonLoaded: !!demonGltf,
+        demons: Object.entries(demons).map(([id, d]) => { const b = new T.Box3().setFromObject(d); let meshes = 0, vis = 0; d.traverse(o => { if (o.isMesh) { meshes++; if (o.visible) vis++; } });
+          return { id, pos: d.position.toArray().map(v => +v.toFixed(2)), scale: +d.scale.x.toFixed(3), inScene: !!d.parent, meshes, vis, box: [b.min.toArray(), b.max.toArray()].map(a => a.map(v => +v.toFixed(2))) }; }),
+        player: [player.x, player.y, player.z].map(v => +v.toFixed(2)) }),
       // for screenshots: put the camera at a fixed spot looking at a point (call with no arguments to go back)
       shot: (pos, look) => { if (!pos) { camMode = 'follow'; return; } shotPos.set(pos[0], pos[1] ?? groundH(pos[0], pos[2]) + 1.6, pos[2]); shotLook.set(...look); camMode = 'shot'; },
       groundAt: (x, z) => groundH(x, z),
